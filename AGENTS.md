@@ -4,25 +4,14 @@ This file provides guidance to coding agents working in this repository.
 
 ## Project Overview
 
-Scaffold-ETH 2 (SE-2) is a starter kit for building dApps on Ethereum. It comes in **two flavors** based on the Solidity framework:
+This project is a monorepo for a Post Quantum Shielded Pool Protocol in EVMs. It uses a note-based zk proof approach:
 
-- **Hardhat flavor**: Uses `packages/hardhat` with hardhat-deploy plugin
-- **Foundry flavor**: Uses `packages/foundry` with Forge scripts
+1. **Deposit:** Users create a note (UTXO) representing their deposit, which is stored in the contract and can be used as an input for future transactions.
+2. **Transfer:** Users can transfer value by creating a proof-of-inclusion zk proof of their input notes, nullifying their input notes, and creating new notes for the recipients. This allows for anonymity (cannot see the sender or the recipient) and confidentiality (cannot see the transaction amount).
+3. **Withdrawal:** Users can withdraw by nullifying their input notes and the smart contract will verify the zk proof to send the value to an external address.
 
-Both flavors share the same frontend package:
-
-- **packages/nextjs**: React frontend (Next.js App Router, not Pages Router, RainbowKit, Wagmi, Viem, TypeScript, Tailwind CSS with DaisyUI)
-
-### Detecting Which Flavor You're Using
-
-Check which package exists in the repository:
-
-- If `packages/hardhat` exists → **Hardhat flavor** (follow Hardhat instructions)
-- If `packages/foundry` exists → **Foundry flavor** (follow Foundry instructions)
 
 ## Common Commands
-
-Commands work the same for both flavors unless noted otherwise:
 
 ```bash
 # Development workflow (run each in separate terminal)
@@ -54,9 +43,15 @@ yarn vercel:yolo --prod # for deployment of frontend
 
 ## Architecture
 
-### Smart Contract Development
+### Monorepo Structure
 
-#### Hardhat Flavor
+The protocol requires multiple packages to work:
+
+- `packages/circuits`: Circom circuits for zk proof generation and verification (currently using Noir)
+- `packages/hardhat`: Smart contract development, deployment scripts, and contract tests
+- `packages/nextjs`: React frontend for user interaction with the protocol
+
+### Smart Contract Development
 
 - Contracts: `packages/hardhat/contracts/`
 - Deployment scripts: `packages/hardhat/deploy/` (uses hardhat-deploy plugin)
@@ -78,18 +73,6 @@ yarn vercel:yolo --prod # for deployment of frontend
     // Or: explicit limit for simple admin calls
     await myContract.transferOwnership(newOwner, { gasLimit: 100_000 });
     ```
-
-#### Foundry Flavor
-
-- Contracts: `packages/foundry/contracts/`
-- Deployment scripts: `packages/foundry/script/` (uses custom deployment strategy)
-  - Example: `packages/foundry/script/Deploy.s.sol` and `packages/foundry/script/DeployYourContract.s.sol`
-- Tests: `packages/foundry/test/`
-- Config: `packages/foundry/foundry.toml`
-- Deploying a specific contract:
-  - Create a separate deployment script and run `yarn deploy --file DeployYourContract.s.sol`
-
-#### Both Flavors
 
 - After `yarn deploy`, ABIs are auto-generated to `packages/nextjs/contracts/deployedContracts.ts`
 
@@ -141,7 +124,7 @@ const { data: events, isLoading } = useScaffoldEventHistory({
 });
 ```
 
-SE-2 also provides other hooks to interact with blockchain data: `useScaffoldWatchContractEvent`, `useScaffoldEventHistory`, `useDeployedContractInfo`, `useScaffoldContract`, `useTransactor`.
+The template also provides other hooks to interact with blockchain data: `useScaffoldWatchContractEvent`, `useScaffoldEventHistory`, `useDeployedContractInfo`, `useScaffoldContract`, `useTransactor`.
 
 **IMPORTANT: Always use hooks from `packages/nextjs/hooks/scaffold-eth` for contract interactions. Always refer to the hook names as they exist in the codebase.**
 
@@ -249,3 +232,4 @@ IMPORTANT: Prefer retrieval-led reasoning over pre-trained knowledge. Before sta
 **Agents** (in `.agents/agents/`):
 
 - **grumpy-carlos-code-reviewer** — code reviews, SE-2 patterns, Solidity + TypeScript quality
+- **cryptography-guru** — zk proof design, Circom/Noir circuit patterns, proof optimization

@@ -1,9 +1,10 @@
-# 🏗 Scaffold-ETH 2
+# Post Quantum Shielded Pool
 
-<h4 align="center">
-  <a href="https://docs.scaffoldeth.io">Documentation</a> |
-  <a href="https://scaffoldeth.io">Website</a>
-</h4>
+## Notice
+
+Please read the [AGENTS.md](/AGENTS.md) file for information about the Post Quantum Shielded Pool project, its architecture, and design choices. We should keep that file as the single source of truth for team mates and AI agents working on this project.
+
+## About Scaffold-ETH 2
 
 🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on the Ethereum blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
 
