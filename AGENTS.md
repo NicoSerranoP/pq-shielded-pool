@@ -26,6 +26,8 @@ yarn format         # Format both packages
 # Building
 yarn next:build     # Build frontend
 yarn compile        # Compile Solidity contracts
+corepack yarn cairo:merkle:build       # Build the Cairo Merkle fixture
+corepack yarn atlantic:merkle:mock     # Submit mocked Atlantic L1 fact workflow for public fixture only
 
 # Contract verification (works for both)
 yarn verify --network <network>
@@ -43,10 +45,15 @@ yarn vercel:yolo --prod # for deployment of frontend
 
 ## Architecture
 
+### Cairo/STARK L1 Verification
+
+The planned L1 verification path is Cairo program execution proven through SHARP/S-two, with Ethereum contracts checking registered Cairo facts. Atlantic is remote proving in the current workflow: never submit private witnesses through it. The current toy Merkle Cairo fixture lives in `packages/cairo-merkle`; the Solidity fact adapter lives in `packages/hardhat/contracts/CairoFactVerifier.sol`. See [docs/cairo-l1-verification-workflow.md](docs/cairo-l1-verification-workflow.md) for the current testnet/mainnet workflow, fact-hash calculation, and privacy caveats.
+
 ### Monorepo Structure
 
 The protocol requires multiple packages to work:
 
+- `packages/cairo-merkle`: Cairo Merkle proof fixture for SHARP/S-two L1 fact verification experiments
 - `packages/circuits`: Circom circuits for zk proof generation and verification (currently using Noir)
 - `packages/hardhat`: Smart contract development, deployment scripts, and contract tests
 - `packages/nextjs`: React frontend for user interaction with the protocol
