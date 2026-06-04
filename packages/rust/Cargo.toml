@@ -1,0 +1,15 @@
+[package]
+name = "pq-shielded-pool-rust"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "pqnote.rs"
+
+[dependencies]
+blake2 = "0.10"
+chacha20poly1305 = "0.10"
+pqcrypto-mlkem = "0.1"
+pqcrypto-traits = "0.3"
+rand_core = { version = "0.6", features = ["getrandom"] }
+thiserror = "2"
