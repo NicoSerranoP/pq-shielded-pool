@@ -1,4 +1,4 @@
-use crate::constants::{MAX_DEPTH, MAX_NEW_NOTES};
+use crate::constants::MAX_DEPTH;
 
 pub struct Note {
     pub value: u32,
@@ -12,12 +12,9 @@ pub struct MerkleProof {
     pub siblings: [Field; MAX_DEPTH],
 }
 
-pub struct Return {
-    new_commitments: [Field; MAX_NEW_NOTES],
-}
-
-impl Return {
-    pub fn new(new_commitments: [Field; MAX_NEW_NOTES]) -> Self {
-        Self { new_commitments }
-    }
+pub struct Signature {
+    pub hashed_message: [u8; 32],
+    pub pub_key_x: [u8; 32],
+    pub pub_key_y: [u8; 32],
+    pub signature: [u8; 64],
 }

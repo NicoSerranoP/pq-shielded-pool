@@ -1,5 +1,5 @@
-use std::hash::poseidon2_permutation;
 use crate::constants::{MAX_DEPTH, MERKLE_TREE_DOMAIN};
+use std::hash::poseidon2_permutation;
 
 /*
 * A binary merkle root implementation using Noir version 1.0.0-beta.22
@@ -42,5 +42,5 @@ pub fn binary_merkle_root<let MAX_DEPTH: u32>(
 * @returns the poseidon hash
 */
 pub fn poseidon2(xs: [Field; 2]) -> Field {
-    poseidon2_permutation([MERKLE_TREE_DOMAIN, xs[0], xs[1], 0], 3)[0]
+    poseidon2_permutation([MERKLE_TREE_DOMAIN, xs[0], xs[1], 0], 4)[0]
 }
