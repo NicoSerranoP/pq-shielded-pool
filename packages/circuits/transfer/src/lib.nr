@@ -1,4 +1,4 @@
-use crate::constants::{MAX_DEPTH, MERKLE_TREE_DOMAIN};
+use shared::constants::{MAX_DEPTH, MERKLE_TREE_DOMAIN};
 use std::hash::poseidon2_permutation;
 
 /*
@@ -6,7 +6,7 @@ use std::hash::poseidon2_permutation;
 *
 * Inspired by: https://github.com/zk-kit/zk-kit.noir/tree/main/packages/binary-merkle-root
 */
-pub fn binary_merkle_root<let MAX_DEPTH: u32>(
+pub fn binary_merkle_root(
     hasher: fn([Field; 2]) -> Field,
     leaf: Field,
     depth: u32,

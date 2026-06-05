@@ -1,10 +1,8 @@
 mod lib;
-mod types;
-mod constants;
 
-use crate::constants::{MAX_DEPTH, MAX_NEW_NOTES, NOTE_COMMITMENT_DOMAIN, NULLIFIER_DOMAIN};
 use crate::lib::{binary_merkle_root, poseidon2};
-use crate::types::{MerkleProof, Note, Signature};
+use shared::constants::{MAX_NEW_NOTES, NOTE_COMMITMENT_DOMAIN, NULLIFIER_DOMAIN};
+use shared::types::{MerkleProof, Note, Signature};
 use std::ecdsa_secp256r1::verify_signature;
 use std::field::bytes32_to_field;
 use std::hash::poseidon2_permutation;
@@ -45,7 +43,7 @@ pub fn main(
 
     assert(computed_nullifier == nullifier, "Nullifiers mismatch");
 
-    let computed_root = binary_merkle_root::<MAX_DEPTH>(
+    let computed_root = binary_merkle_root(
         poseidon2,
         old_commitment,
         merkle_proof.length,
