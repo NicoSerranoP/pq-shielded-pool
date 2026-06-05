@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IDepositVerifier} from "../ShieldedPool.sol";
+import { IDepositVerifier } from "../ShieldedPool.sol";
 
 contract MockDepositVerifier is IDepositVerifier {
     bool public shouldAccept = true;
@@ -16,11 +16,6 @@ contract MockDepositVerifier is IDepositVerifier {
         uint256 commitment,
         bytes calldata proof
     ) external view returns (bool) {
-        return
-            shouldAccept &&
-            amount != 0 &&
-            assetId != 0 &&
-            commitment != 0 &&
-            proof.length != 0;
+        return shouldAccept && amount != 0 && assetId != 0 && commitment != 0 && proof.length != 0;
     }
 }

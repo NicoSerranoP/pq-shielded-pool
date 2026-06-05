@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {InternalLeanIMT, LeanIMTData} from "@zk-kit/lean-imt.sol/InternalLeanIMT.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { InternalLeanIMT, LeanIMTData } from "@zk-kit/lean-imt.sol/InternalLeanIMT.sol";
+import { BucketedNullifierSet } from "./BucketedNullifierSet.sol";
 
 /// @notice Verifier contract for deposit note well-formedness proofs.
 /// @dev The generated zk verifier should prove that `commitment` commits to the
@@ -18,8 +19,21 @@ interface IDepositVerifier {
     ) external view returns (bool);
 }
 
-/// @notice Deposit-only shielded pool using a Lean Incremental Merkle Tree.
-contract ShieldedPool is ReentrancyGuard {
+/// @notice Verifier contract for private transfer proofs.
+/// @dev The generated zk verifier should prove that the input nullifier is
+/// derived from a private note commitment included in `root`, and that the
+/// output commitments preserve value for this pool's asset.
+interface ITransferVerifier {
+    function verifyTransferProof(
+        uint256 root,
+        uint256 inputNullifier,
+        uint256[] calldata outputCommitments,
+        bytes calldata proof
+    ) external view returns (bool);
+}
+
+/// @notice Shielded pool using a Lean Incremental Merkle Tree.
+contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
     using InternalLeanIMT for LeanIMTData;
     using SafeERC20 for IERC20;
 
@@ -27,6 +41,7 @@ contract ShieldedPool is ReentrancyGuard {
 
     IERC20 public immutable token;
     IDepositVerifier public immutable depositVerifier;
+    ITransferVerifier public immutable transferVerifier;
     uint256 public immutable assetId;
 
     LeanIMTData private _commitmentTree;
@@ -36,9 +51,16 @@ contract ShieldedPool is ReentrancyGuard {
 
     error InvalidToken();
     error InvalidDepositVerifier();
+    error InvalidTransferVerifier();
     error InvalidAssetId();
     error InvalidAmount();
     error InvalidDepositProof();
+    error InvalidTransferProof();
+    error UnknownMerkleRoot();
+    error NoOutputCommitments();
+    error InvalidNullifier();
+    error NullifierAlreadySpent(uint256 nullifier);
+    error InvalidOutputCommitment();
     error InvalidRootHistoryIndex();
     error TokenTransferAmountMismatch();
 
@@ -51,9 +73,18 @@ contract ShieldedPool is ReentrancyGuard {
         uint256 root
     );
 
+    event Transfer(
+        uint256 indexed oldRoot,
+        uint256 indexed firstLeafIndex,
+        uint256 indexed newRoot,
+        uint256 inputNullifier,
+        uint256[] outputCommitments
+    );
+
     constructor(
         IERC20 token_,
         IDepositVerifier depositVerifier_,
+        ITransferVerifier transferVerifier_,
         uint256 assetId_
     ) {
         if (address(token_) == address(0)) {
@@ -64,12 +95,17 @@ contract ShieldedPool is ReentrancyGuard {
             revert InvalidDepositVerifier();
         }
 
+        if (address(transferVerifier_) == address(0)) {
+            revert InvalidTransferVerifier();
+        }
+
         if (assetId_ == 0) {
             revert InvalidAssetId();
         }
 
         token = token_;
         depositVerifier = depositVerifier_;
+        transferVerifier = transferVerifier_;
         assetId = assetId_;
     }
 
@@ -94,14 +130,7 @@ contract ShieldedPool is ReentrancyGuard {
             revert InvalidAssetId();
         }
 
-        if (
-            !depositVerifier.verifyDepositProof(
-                amount,
-                depositAssetId,
-                commitment,
-                zkProof
-            )
-        ) {
+        if (!depositVerifier.verifyDepositProof(amount, depositAssetId, commitment, zkProof)) {
             revert InvalidDepositProof();
         }
 
@@ -117,14 +146,45 @@ contract ShieldedPool is ReentrancyGuard {
         newRoot = _commitmentTree._insert(commitment);
         _rememberRoot(newRoot);
 
-        emit Deposit(
-            msg.sender,
-            depositAssetId,
-            leafIndex,
-            amount,
-            commitment,
-            newRoot
-        );
+        emit Deposit(msg.sender, depositAssetId, leafIndex, amount, commitment, newRoot);
+    }
+
+    /// @notice Spend private input notes and append private output note commitments.
+    /// @param root An accepted Merkle root containing the private input commitments.
+    /// @param inputNullifier Nullifier for the note consumed by this transfer.
+    /// @param outputCommitments Dynamic output note commitments, e.g. recipient plus change.
+    /// @param zkProof A proof of inclusion, nullifier correctness, and value conservation.
+    /// @return firstLeafIndex The tree index of the first inserted output commitment.
+    /// @return newRoot The Merkle root after all output commitments are inserted.
+    function transfer(
+        uint256 root,
+        uint256 inputNullifier,
+        uint256[] calldata outputCommitments,
+        bytes calldata zkProof
+    ) external nonReentrant returns (uint256 firstLeafIndex, uint256 newRoot) {
+        if (!_knownRoots[root]) {
+            revert UnknownMerkleRoot();
+        }
+
+        if (inputNullifier == 0) {
+            revert InvalidNullifier();
+        }
+
+        if (outputCommitments.length == 0) {
+            revert NoOutputCommitments();
+        }
+
+        if (!transferVerifier.verifyTransferProof(root, inputNullifier, outputCommitments, zkProof)) {
+            revert InvalidTransferProof();
+        }
+
+        _spendNullifier(inputNullifier);
+
+        firstLeafIndex = _commitmentTree.size;
+        newRoot = _insertOutputCommitments(outputCommitments);
+        _rememberRoot(newRoot);
+
+        emit Transfer(root, firstLeafIndex, newRoot, inputNullifier, outputCommitments);
     }
 
     function currentRoot() external view returns (uint256) {
@@ -151,6 +211,10 @@ contract ShieldedPool is ReentrancyGuard {
         return _knownRoots[root];
     }
 
+    function isNullifierSpent(uint256 nullifier) external view returns (bool) {
+        return contains(nullifier);
+    }
+
     function rootHistoryIndex() external view returns (uint256) {
         return _rootHistoryIndex;
     }
@@ -161,6 +225,34 @@ contract ShieldedPool is ReentrancyGuard {
         }
 
         return _rootHistory[index];
+    }
+
+    function _spendNullifier(uint256 nullifier) private {
+        if (nullifier == 0) {
+            revert InvalidNullifier();
+        }
+
+        if (contains(nullifier)) {
+            revert NullifierAlreadySpent(nullifier);
+        }
+
+        _pushNullifier(nullifier);
+    }
+
+    function _insertOutputCommitments(uint256[] calldata outputCommitments) private returns (uint256 root) {
+        for (uint256 i = 0; i < outputCommitments.length; ) {
+            uint256 commitment = outputCommitments[i];
+
+            if (commitment == 0) {
+                revert InvalidOutputCommitment();
+            }
+
+            root = _commitmentTree._insert(commitment);
+
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     function _rememberRoot(uint256 root) private {
