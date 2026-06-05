@@ -43,6 +43,7 @@ fn read_u128(ref input: Array<felt252>) -> u128 {
     input.pop_front().unwrap().try_into().unwrap()
 }
 
+#[executable]
 pub fn main(mut input: Array<felt252>) -> Array<felt252> {
     assert(input.len() == INPUT_LEN, 'bad_input_len');
 

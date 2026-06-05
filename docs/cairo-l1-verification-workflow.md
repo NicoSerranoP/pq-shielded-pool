@@ -16,6 +16,75 @@ For our shielded-pool production goal, proof generation must happen locally or i
 
 The script `packages/hardhat/scripts/submitAtlanticMerkle.mjs` now enforces this by default: it only submits the known public toy fixture hashes. Any non-fixture upload requires the explicit `--allow-remote-witness-upload` flag or `ATLANTIC_ALLOW_REMOTE_WITNESS_UPLOAD=true`, and that override must not be used with private shielded-pool witnesses.
 
+
+## Local Stwo Prover Path
+
+We now have a local proof-generation smoke test for the Cairo Merkle executable. This path runs entirely on the local machine:
+
+```sh
+SCARB_BIN=/tmp/scarb-v2.15.0-x86_64-unknown-linux-gnu/bin/scarb corepack yarn cairo:merkle:prove-local
+```
+
+What it does:
+
+1. Builds `packages/cairo-merkle` with Scarb/Cairo 2.15.0, matching the current `stwo-cairo` prover dependency pins.
+2. Executes the Merkle program locally and confirms the public output root `823984307`.
+3. Runs `packages/stwo-cairo/stwo_cairo_prover/target/release/run_and_prove` locally with `--program_type executable` and `--verify`.
+4. Writes the proof to `packages/cairo-merkle/target/local-proofs/merkle-proof.json`.
+5. Runs the standalone Rust verifier locally with `--channel_hash blake2s`.
+
+This command does not use Atlantic, does not call a remote prover, and does not upload `inputs/merkle_path_args.json`. The generated proof artifact is ignored under `target/`.
+
+The local stwo-cairo checkout needed two dev-utility fixes for Scarb executable support:
+
+- `run_and_prove` now exposes a `--layout` flag while keeping `all_cairo_stwo` as the default.
+- executable adaptation now sets `PublicSegmentContext` from the executable entrypoint's actual builtins instead of always using the bootloader/all-builtin context. This fixed malformed public segment ranges for Scarb executables and allowed the Merkle proof to pass.
+
+Important privacy boundary: local proving solves the remote-witness-upload problem, but stwo-cairo is not zero-knowledge by default. A direct public proof may reveal sampled execution data. A direct text search of the toy proof found the public root but not the obvious toy witness values; that is only a smoke check, not a privacy proof. Before private transfers, we need a formal proof-leakage audit or a recursive/hiding construction where only the intended public statement reaches chain or any third party.
+
+## Recursive Verifier Status
+
+We can also verify the locally generated Merkle STARK proof with the Cairo recursive verifier on this machine. The current full verifier entrypoint is `stwo_cairo_verifier_array`, which accepts the serialized `CairoProof` as an input array and returns:
+
+1. the verifier program hash,
+2. the original Cairo program output length,
+3. the original Cairo Merkle root.
+
+Current local command:
+
+```sh
+source /home/yavor/.bashrc
+scarb --profile proving build --package stwo_cairo_verifier --features poseidon252_verifier
+scarb --profile proving execute --no-build \
+  --package stwo_cairo_verifier \
+  --features poseidon252_verifier \
+  --executable-name stwo_cairo_verifier_array \
+  --arguments-file /home/yavor/yavor/Coding/IC3-2026-Hackathon/pq-shielded-pool/packages/cairo-merkle/target/local-proofs/merkle-proof.poseidon.cairo-serde.array-args.json \
+  --layout all_cairo \
+  --print-program-output --print-resource-usage
+```
+
+Current local result with Scarb 2.18.0:
+
+```text
+Program output:
+3
+-1210432837679171818288727564040993199151119840003011262996498487688464571055
+1
+823984307
+steps: 17,582,452
+```
+
+Atlantic does not yet accept this recursive verifier artifact. The plain Merkle fixture still verifies through mocked Sepolia fact registration, and a diagnostic echo program with the same 114,691-element public proof input also verifies through Atlantic. However, a deserialize-only version of the stwo Cairo verifier fails on Atlantic before metadata generation completes, for all tested job sizes:
+
+- `S`: `01KTC4W0V9Q8M6E1F41DTMZWHX`
+- `M`: `01KTC4Z43TJ4NMH4QVVRXSHEHE`
+- `L`: `01KTC52ADTPC24H0FJ0PFDQX17`
+
+Each failed with `Error: Failed to run cairo1 rust vm: VirtualMachine(Unexpected)` during `TRACE_AND_METADATA_GENERATION`. A full-verifier retry with explicit `layout=all_cairo` also failed with the same error: `01KTC63E3YGMY4EFASMAYZBXAS`. Because the same verifier artifact runs locally and the same large input is accepted by a simple Atlantic program, this currently looks like an Atlantic Cairo runner compatibility issue with the generated stwo verifier/deserializer code rather than a local proving failure.
+
+This does not currently look like an Atlantic credit/quota issue. Herodotus documents testnet proof verification as free, while trace generation and proof generation can still consume credits by runtime/job size. Our failed recursive-verifier jobs were accepted and then failed inside Cairo VM trace generation, not rejected at submission for billing or quota reasons.
+
 ## What Gets Verified On L1
 
 The L1 contract does not directly verify our Merkle path inputs. It checks that SHARP/Atlantic registered a Cairo fact for:

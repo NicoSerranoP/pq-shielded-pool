@@ -27,6 +27,9 @@ yarn format         # Format both packages
 yarn next:build     # Build frontend
 yarn compile        # Compile Solidity contracts
 corepack yarn cairo:merkle:build       # Build the Cairo Merkle fixture
+corepack yarn cairo:merkle:prove-local # Generate and verify the local Stwo Merkle proof; do not use Atlantic
+corepack yarn cairo:merkle:prepare-recursive-inputs # Prepare local recursive-verifier proof inputs
+corepack yarn cairo:merkle:verify-recursive-local   # Run local Cairo recursive verifier for the Merkle proof
 corepack yarn atlantic:merkle:mock     # Submit mocked Atlantic L1 fact workflow for public fixture only
 
 # Contract verification (works for both)
@@ -47,7 +50,7 @@ yarn vercel:yolo --prod # for deployment of frontend
 
 ### Cairo/STARK L1 Verification
 
-The planned L1 verification path is Cairo program execution proven through SHARP/S-two, with Ethereum contracts checking registered Cairo facts. Atlantic is remote proving in the current workflow: never submit private witnesses through it. The current toy Merkle Cairo fixture lives in `packages/cairo-merkle`; the Solidity fact adapter lives in `packages/hardhat/contracts/CairoFactVerifier.sol`. See [docs/cairo-l1-verification-workflow.md](docs/cairo-l1-verification-workflow.md) for the current testnet/mainnet workflow, fact-hash calculation, and privacy caveats.
+The planned L1 verification path is Cairo program execution proven through SHARP/S-two, with Ethereum contracts checking registered Cairo facts. Atlantic is remote proving in the current workflow: never submit private witnesses through it. The current toy Merkle Cairo fixture lives in `packages/cairo-merkle`; the Solidity fact adapter lives in `packages/hardhat/contracts/CairoFactVerifier.sol`. Local Stwo proof generation and local Cairo recursive verification currently pass for the Merkle fixture, but Atlantic does not yet accept the generated stwo Cairo recursive verifier artifact (`VirtualMachine(Unexpected)` during trace generation). Do not claim recursive L1 verification is complete until that blocker is resolved. See [docs/pq-proof-testing-handoff.md](docs/pq-proof-testing-handoff.md) and [docs/cairo-l1-verification-workflow.md](docs/cairo-l1-verification-workflow.md) for commands, query ids, fact-hash calculation, and privacy caveats.
 
 ### Monorepo Structure
 

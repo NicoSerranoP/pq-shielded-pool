@@ -1,0 +1,18 @@
+[package]
+name = "atlantic_echo"
+version = "0.1.0"
+edition = "2024_07"
+
+[lib]
+sierra = true
+casm = false
+
+[[target.executable]]
+name = "atlantic_echo"
+function = "atlantic_echo::main"
+
+[cairo]
+enable-gas = false
+
+[dependencies]
+cairo_execute = ">=2.18.0"

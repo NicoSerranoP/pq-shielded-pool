@@ -51,6 +51,7 @@ function parseArgs(argv) {
     mockFactHash: true,
     network: "TESTNET",
     declaredJobSize: "S",
+    layout: "auto",
     poll: true,
     checkSatellite: true,
     dryRun: false,
@@ -58,6 +59,7 @@ function parseArgs(argv) {
     timeoutMs: 15 * 60 * 1000,
     programFile: path.join(REPO_ROOT, "packages/cairo-merkle/target/dev/pq_cairo_merkle.sierra.json"),
     inputFile: path.join(REPO_ROOT, "packages/cairo-merkle/inputs/merkle_path.txt"),
+    pieFile: "",
     queryId: "",
     allowRemoteWitnessUpload: false,
   };
@@ -78,8 +80,10 @@ function parseArgs(argv) {
     else if (arg === "--testnet") options.network = "TESTNET";
     else if (arg === "--network") options.network = next().toUpperCase();
     else if (arg === "--declared-job-size") options.declaredJobSize = next().toUpperCase();
+    else if (arg === "--layout") options.layout = next();
     else if (arg === "--program-file") options.programFile = path.resolve(next());
     else if (arg === "--input-file") options.inputFile = path.resolve(next());
+    else if (arg === "--pie-file") options.pieFile = path.resolve(next());
     else if (arg === "--query-id") options.queryId = next();
     else if (arg === "--no-poll") options.poll = false;
     else if (arg === "--no-satellite") options.checkSatellite = false;
@@ -129,8 +133,10 @@ Options:
   --testnet           Use Atlantic TESTNET. Default.
   --mainnet           Use Atlantic MAINNET.
   --declared-job-size S|M|L|XS
+  --layout LAYOUT
   --program-file PATH
   --input-file PATH
+  --pie-file PATH     Submit a Cairo PIE instead of programFile/inputFile.
   --query-id ID       Resume/poll an existing Atlantic query instead of submitting a new one.
   --no-poll           Submit only; do not poll query status.
   --no-satellite      Do not read the Satellite registry after completion.
@@ -163,6 +169,26 @@ function sha256File(filePath) {
 }
 
 function verifyRemoteUploadIsFixtureOnly(options) {
+  if (options.pieFile) {
+    const pieHash = sha256File(options.pieFile);
+
+    if (options.allowRemoteWitnessUpload || process.env.ATLANTIC_ALLOW_REMOTE_WITNESS_UPLOAD === "true") {
+      console.warn(
+        "WARNING: uploading Cairo PIE to Atlantic. Only use this when the PIE contains public proof/verifier data, not private shielded-pool witnesses.",
+      );
+      return { pieHash, isKnownPublicFixture: false, artifact: "cairo-pie" };
+    }
+
+    throw new Error(
+      [
+        "Refusing to upload Cairo PIE to Atlantic by default.",
+        "A PIE can contain execution data and may leak private witnesses.",
+        "For this recursive verifier experiment only, pass --allow-remote-witness-upload after confirming the PIE input is public proof data.",
+        `pieFile sha256=${pieHash}`,
+      ].join("\n"),
+    );
+  }
+
   const inputHash = sha256File(options.inputFile);
   const programHash = sha256File(options.programFile);
   const isKnownPublicFixture =
@@ -215,7 +241,7 @@ async function buildSubmitForm(options) {
   const fields = {
     declaredJobSize: options.declaredJobSize,
     sharpProver: "stwo",
-    layout: "auto",
+    layout: options.layout,
     cairoVm: "rust",
     cairoVersion: "cairo1",
     result: "PROOF_VERIFICATION_ON_L1",
@@ -227,10 +253,15 @@ async function buildSubmitForm(options) {
     form.set(key, value);
   }
 
-  const programBlob = await fs.openAsBlob(options.programFile, { type: "application/json" });
-  const inputBlob = await fs.openAsBlob(options.inputFile, { type: "text/plain" });
-  form.set("programFile", programBlob, path.basename(options.programFile));
-  form.set("inputFile", inputBlob, path.basename(options.inputFile));
+  if (options.pieFile) {
+    const pieBlob = await fs.openAsBlob(options.pieFile, { type: "application/zip" });
+    form.set("pieFile", pieBlob, path.basename(options.pieFile));
+  } else {
+    const programBlob = await fs.openAsBlob(options.programFile, { type: "application/json" });
+    const inputBlob = await fs.openAsBlob(options.inputFile, { type: "text/plain" });
+    form.set("programFile", programBlob, path.basename(options.programFile));
+    form.set("inputFile", inputBlob, path.basename(options.inputFile));
+  }
 
   return { form, fields };
 }
@@ -387,8 +418,12 @@ async function main() {
 
   const options = parseArgs(process.argv.slice(2));
   if (!options.queryId) {
-    requireFile(options.programFile, "Cairo Sierra artifact");
-    requireFile(options.inputFile, "Atlantic input file");
+    if (options.pieFile) {
+      requireFile(options.pieFile, "Cairo PIE artifact");
+    } else {
+      requireFile(options.programFile, "Cairo Sierra artifact");
+      requireFile(options.inputFile, "Atlantic input file");
+    }
   }
 
   const { fields } = await buildSubmitForm(options);
@@ -396,8 +431,9 @@ async function main() {
   const requestSummary = {
     url: `${ATLANTIC_URL}/atlantic-query`,
     fields,
-    programFile: path.relative(REPO_ROOT, options.programFile),
-    inputFile: path.relative(REPO_ROOT, options.inputFile),
+    programFile: options.pieFile ? null : path.relative(REPO_ROOT, options.programFile),
+    inputFile: options.pieFile ? null : path.relative(REPO_ROOT, options.inputFile),
+    pieFile: options.pieFile ? path.relative(REPO_ROOT, options.pieFile) : null,
     mode: options.mockFactHash ? "mockFactHash=true" : "mockFactHash=false",
     remoteProving: true,
     uploadSafety,

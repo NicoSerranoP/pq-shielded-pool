@@ -1,0 +1,1051 @@
+use components::memory_address_to_id::InteractionClaimImpl as MemoryAddressToIdInteractionClaimImpl;
+use components::memory_id_to_big::{
+    InteractionClaimImpl as MemoryIdToBigInteractionClaimImpl, LARGE_MEMORY_VALUE_ID_BASE,
+};
+use components::triple_xor_32::InteractionClaimImpl as TripleXor32InteractionClaimImpl;
+use components::verify_bitwise_xor_12::InteractionClaimImpl as VerifyBitwiseXor12InteractionClaimImpl;
+use components::verify_bitwise_xor_4::InteractionClaimImpl as VerifyBitwiseXor4InteractionClaimImpl;
+use components::verify_bitwise_xor_7::InteractionClaimImpl as VerifyBitwiseXor7InteractionClaimImpl;
+use components::verify_bitwise_xor_8::InteractionClaimImpl as VerifyBitwiseXor8InteractionClaimImpl;
+use components::verify_bitwise_xor_9::InteractionClaimImpl as VerifyBitwiseXor9InteractionClaimImpl;
+use components::verify_instruction::InteractionClaimImpl as VerifyInstructionInteractionClaimImpl;
+use core::array::Span;
+use core::box::BoxImpl;
+use core::num::traits::Zero;
+use core::traits::TryInto;
+use stwo_cairo_air::blake::{BlakeContextComponents, BlakeContextComponentsImpl};
+use stwo_cairo_air::builtins::{BuiltinComponents, BuiltinComponentsImpl};
+use stwo_cairo_air::opcodes::{OpcodeComponents, OpcodeComponentsImpl};
+use stwo_verifier_core::fields::m31::M31;
+use crate::P_U32;
+
+#[cfg(not(feature: "poseidon252_verifier"))]
+pub mod pedersen_context_imports {
+    pub use stwo_cairo_air::pedersen::{PedersenContextComponents, PedersenContextComponentsImpl};
+}
+#[cfg(not(feature: "poseidon252_verifier"))]
+use pedersen_context_imports::*;
+#[cfg(or(not(feature: "poseidon252_verifier"), feature: "poseidon_outputs_packing"))]
+pub mod poseidon_context_imports {
+    pub use stwo_cairo_air::poseidon::{PoseidonContextComponents, PoseidonContextComponentsImpl};
+}
+#[cfg(or(not(feature: "poseidon252_verifier"), feature: "poseidon_outputs_packing"))]
+use poseidon_context_imports::*;
+use stwo_cairo_air::preprocessed_columns::PREPROCESSED_COLUMN_LOG_SIZE;
+use stwo_cairo_air::range_checks::{RangeChecksComponents, RangeChecksComponentsImpl};
+use stwo_cairo_air::{PublicDataImpl, components};
+use stwo_constraint_framework::{
+    AirComponent, LookupElementsImpl, PreprocessedMaskValues, PreprocessedMaskValuesImpl,
+};
+use stwo_verifier_core::circle::CirclePoint;
+use stwo_verifier_core::fields::qm31::QM31;
+use stwo_verifier_core::pcs::verifier::CommitmentSchemeVerifierImpl;
+use stwo_verifier_core::utils::{ArrayImpl, OptionImpl, pow2};
+use stwo_verifier_core::verifier::Air;
+use stwo_verifier_core::{ColumnSpan, TreeArray, TreeSpan};
+use crate::claims::{CairoClaim, CairoInteractionClaim};
+
+pub const OPCODES_RELATION_ID: M31 = M31 { inner: 428564188 };
+pub const MEMORY_ADDRESS_TO_ID_RELATION_ID: M31 = M31 { inner: 1444891767 };
+pub const MEMORY_ID_TO_VALUE_RELATION_ID: M31 = M31 { inner: 1662111297 };
+pub const VERIFY_BITWISE_XOR_12_RELATION_ID: M31 = M31 { inner: 648362599 };
+
+
+/// Validates that every `mask_value` provided in the proof (in `sampled_values`) is used by at
+/// least one component.
+///
+/// Since `eval_composition_polynomial_at_point` is responsible for validating the *structure*
+/// of `sampled_values` in the proof, it needs to ensure that all sampled preprocessed
+/// mask values are actually used. Otherwise, the prover would have the freedom to
+/// send a sample of a column even if it is unused, adding another term to the FRI quotients.
+///
+/// Additionally, there is a sanity check that the columns in the trace and interaction-trace were
+/// consumed by the components.
+/// This is not strictly necessary as the verifier generates the column indices on its own and only
+/// access samples of columns for which it knows about.
+fn validate_mask_usage(
+    preprocessed_mask_values: PreprocessedMaskValues,
+    trace_mask_values: ColumnSpan<Span<QM31>>,
+    interaction_trace_mask_values: ColumnSpan<Span<QM31>>,
+) {
+    preprocessed_mask_values.validate_usage();
+    assert!(trace_mask_values.is_empty());
+    assert!(interaction_trace_mask_values.is_empty());
+}
+
+/// Override the preprocessed trace log sizes, since they come from a global setting
+/// rather than computed by concatenating preprocessed log sizes of the individual
+/// components.
+/// TODO(ilya): consider removing the generation of `_invalid_preprocessed_trace_log_sizes`.
+pub fn override_preprocessed_trace_log_sizes(
+    aggregated_log_sizes: TreeArray<Span<u32>>,
+) -> TreeArray<Span<u32>> {
+    let boxed_triplet: Box<[Span<u32>; 3]> = *aggregated_log_sizes.span().try_into().unwrap();
+    let [_invalid_preprocessed_trace_log_sizes, trace_log_sizes, interaction_log_sizes] =
+        boxed_triplet
+        .unbox();
+
+    array![PREPROCESSED_COLUMN_LOG_SIZE.span(), trace_log_sizes, interaction_log_sizes]
+}
+
+#[derive(Drop)]
+#[cfg(not(feature: "poseidon252_verifier"))]
+pub struct CairoAir {
+    opcodes: OpcodeComponents,
+    verify_instruction: components::verify_instruction::Component,
+    blake_context: BlakeContextComponents,
+    builtins: BuiltinComponents,
+    partial_ec_mul_generic: Option<components::partial_ec_mul_generic::Component>,
+    pedersen_context: PedersenContextComponents,
+    poseidon_context: PoseidonContextComponents,
+    memory_address_to_id: components::memory_address_to_id::Component,
+    memory_id_to_big: Array<components::memory_id_to_big::BigComponent>,
+    memory_id_to_small: components::memory_id_to_small::Component,
+    range_checks: RangeChecksComponents,
+    verify_bitwise_xor_4: components::verify_bitwise_xor_4::Component,
+    verify_bitwise_xor_7: components::verify_bitwise_xor_7::Component,
+    verify_bitwise_xor_8: components::verify_bitwise_xor_8::Component,
+    verify_bitwise_xor_9: components::verify_bitwise_xor_9::Component,
+    public_data: stwo_cairo_air::PublicData,
+}
+
+#[generate_trait]
+#[cfg(not(feature: "poseidon252_verifier"))]
+pub impl CairoAirNewImpl of CairoAirNewTrait {
+    fn new(
+        cairo_claim: @CairoClaim,
+        common_lookup_elements: @crate::CommonLookupElements,
+        interaction_claim: @CairoInteractionClaim,
+    ) -> CairoAir {
+        let opcode_components = OpcodeComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let blake_context_component = BlakeContextComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let builtins_components = BuiltinComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let partial_ec_mul_generic_component =
+            components::partial_ec_mul_generic::NewComponentImpl::try_new(
+            cairo_claim.partial_ec_mul_generic,
+            interaction_claim.partial_ec_mul_generic,
+            common_lookup_elements,
+        );
+
+        let pedersen_context_components = PedersenContextComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let poseidon_context_components = PoseidonContextComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let verifyinstruction_component = components::verify_instruction::NewComponentImpl::new(
+            cairo_claim.verify_instruction.as_snap().unwrap(),
+            interaction_claim.verify_instruction.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let memory_address_to_id_component =
+            components::memory_address_to_id::NewComponentImpl::new(
+            cairo_claim.memory_address_to_id.as_snap().unwrap(),
+            interaction_claim.memory_address_to_id.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let claim_memory_id_to_big = cairo_claim.memory_id_to_big.as_snap().unwrap();
+        let interaction_claim_memory_id_to_big = interaction_claim
+            .memory_id_to_big
+            .as_snap()
+            .unwrap();
+        assert!(
+            claim_memory_id_to_big
+                .big_log_sizes
+                .len() == interaction_claim_memory_id_to_big
+                .big_claimed_sums
+                .len(),
+        );
+        let mut memory_id_to_value_components = array![];
+        let mut offset: u32 = LARGE_MEMORY_VALUE_ID_BASE;
+        for i in 0..claim_memory_id_to_big.big_log_sizes.len() {
+            let log_size = claim_memory_id_to_big.big_log_sizes[i];
+            let claimed_sum = interaction_claim_memory_id_to_big.big_claimed_sums[i];
+            memory_id_to_value_components
+                .append(
+                    components::memory_id_to_big::NewBigComponentImpl::new(
+                        *log_size, offset, *claimed_sum, common_lookup_elements,
+                    ),
+                );
+            offset = offset + pow2(*log_size);
+        }
+        // Check that IDs in (ID -> Value) do not overflow P.
+        assert!(offset <= P_U32);
+
+        let small_memory_id_to_value_component =
+            components::memory_id_to_small::NewComponentImpl::new(
+            cairo_claim.memory_id_to_small.as_snap().unwrap(),
+            interaction_claim.memory_id_to_small.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let range_checks_components = RangeChecksComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let verify_bitwise_xor_4_component =
+            components::verify_bitwise_xor_4::NewComponentImpl::new(
+            cairo_claim.verify_bitwise_xor_4.as_snap().unwrap(),
+            interaction_claim.verify_bitwise_xor_4.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let verify_bitwise_xor_7_component =
+            components::verify_bitwise_xor_7::NewComponentImpl::new(
+            cairo_claim.verify_bitwise_xor_7.as_snap().unwrap(),
+            interaction_claim.verify_bitwise_xor_7.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let verify_bitwise_xor_8_component =
+            components::verify_bitwise_xor_8::NewComponentImpl::new(
+            cairo_claim.verify_bitwise_xor_8.as_snap().unwrap(),
+            interaction_claim.verify_bitwise_xor_8.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let verify_bitwise_xor_9_component =
+            components::verify_bitwise_xor_9::NewComponentImpl::new(
+            cairo_claim.verify_bitwise_xor_9.as_snap().unwrap(),
+            interaction_claim.verify_bitwise_xor_9.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        CairoAir {
+            opcodes: opcode_components,
+            verify_instruction: verifyinstruction_component,
+            blake_context: blake_context_component,
+            builtins: builtins_components,
+            partial_ec_mul_generic: partial_ec_mul_generic_component,
+            pedersen_context: pedersen_context_components,
+            poseidon_context: poseidon_context_components,
+            memory_address_to_id: memory_address_to_id_component,
+            memory_id_to_big: memory_id_to_value_components,
+            memory_id_to_small: small_memory_id_to_value_component,
+            range_checks: range_checks_components,
+            verify_bitwise_xor_4: verify_bitwise_xor_4_component,
+            verify_bitwise_xor_7: verify_bitwise_xor_7_component,
+            verify_bitwise_xor_8: verify_bitwise_xor_8_component,
+            verify_bitwise_xor_9: verify_bitwise_xor_9_component,
+            public_data: cairo_claim.public_data.clone(),
+        }
+    }
+}
+
+#[cfg(not(feature: "poseidon252_verifier"))]
+pub impl CairoAirImpl of Air<CairoAir> {
+    fn eval_composition_polynomial_at_point(
+        self: @CairoAir,
+        point: CirclePoint<QM31>,
+        mask_values: TreeSpan<ColumnSpan<Span<QM31>>>,
+        random_coeff: QM31,
+    ) -> QM31 {
+        let mut sum = Zero::zero();
+
+        let [
+            preprocessed_mask_values,
+            mut trace_mask_values,
+            mut interaction_trace_mask_values,
+            _composition_trace_mask_values,
+        ]: [ColumnSpan<Span<QM31>>; 4] =
+            (*mask_values
+            .try_into()
+            .unwrap())
+            .unbox();
+
+        let mut preprocessed_mask_values = PreprocessedMaskValuesImpl::new(
+            preprocessed_mask_values,
+        );
+        let CairoAir {
+            opcodes,
+            verify_instruction,
+            blake_context,
+            builtins,
+            partial_ec_mul_generic,
+            pedersen_context,
+            poseidon_context,
+            memory_address_to_id,
+            memory_id_to_big,
+            memory_id_to_small,
+            range_checks,
+            verify_bitwise_xor_4,
+            verify_bitwise_xor_7,
+            verify_bitwise_xor_8,
+            verify_bitwise_xor_9,
+            public_data,
+        } = self;
+
+        opcodes
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+            );
+        verify_instruction
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        blake_context
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+            );
+        builtins
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                public_data,
+            );
+        if let Option::Some(component) = partial_ec_mul_generic.as_snap() {
+            component
+                .evaluate_constraints_at_point(
+                    ref sum,
+                    ref preprocessed_mask_values,
+                    ref trace_mask_values,
+                    ref interaction_trace_mask_values,
+                    random_coeff,
+                    [].span(),
+                );
+        }
+        pedersen_context
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+            );
+        poseidon_context
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+            );
+        memory_address_to_id
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+
+        for memory_id_to_value_big_component in memory_id_to_big.span() {
+            memory_id_to_value_big_component
+                .evaluate_constraints_at_point(
+                    ref sum,
+                    ref preprocessed_mask_values,
+                    ref trace_mask_values,
+                    ref interaction_trace_mask_values,
+                    random_coeff,
+                    [].span(),
+                );
+        }
+        memory_id_to_small
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+
+        range_checks
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+            );
+        verify_bitwise_xor_4
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        verify_bitwise_xor_7
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        verify_bitwise_xor_8
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        verify_bitwise_xor_9
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+
+        validate_mask_usage(
+            preprocessed_mask_values, trace_mask_values, interaction_trace_mask_values,
+        );
+        sum
+    }
+}
+
+#[derive(Drop)]
+#[cfg(and(feature: "poseidon252_verifier", not(feature: "poseidon_outputs_packing")))]
+pub struct CairoAir {
+    opcodes: OpcodeComponents,
+    verify_instruction: components::verify_instruction::Component,
+    blake_context: BlakeContextComponents,
+    builtins: BuiltinComponents,
+    memory_address_to_id: components::memory_address_to_id::Component,
+    memory_id_to_big: Array<components::memory_id_to_big::BigComponent>,
+    memory_id_to_small: components::memory_id_to_small::Component,
+    range_checks: RangeChecksComponents,
+    verify_bitwise_xor_4: components::verify_bitwise_xor_4::Component,
+    verify_bitwise_xor_7: components::verify_bitwise_xor_7::Component,
+    verify_bitwise_xor_8: components::verify_bitwise_xor_8::Component,
+    verify_bitwise_xor_9: components::verify_bitwise_xor_9::Component,
+    public_data: stwo_cairo_air::PublicData,
+}
+
+#[generate_trait]
+#[cfg(and(feature: "poseidon252_verifier", not(feature: "poseidon_outputs_packing")))]
+pub impl CairoAirNewImpl of CairoAirNewTrait {
+    fn new(
+        cairo_claim: @CairoClaim,
+        common_lookup_elements: @crate::CommonLookupElements,
+        interaction_claim: @CairoInteractionClaim,
+    ) -> CairoAir {
+        assert!(
+            cairo_claim.partial_ec_mul_generic.is_none(),
+            "Partial EC Mul Generic is not supported.",
+        );
+        assert!(
+            interaction_claim.partial_ec_mul_generic.is_none(),
+            "Partial EC Mul Generic is not supported.",
+        );
+
+        let opcode_components = OpcodeComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let blake_context_component = BlakeContextComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let builtins_components = BuiltinComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let verifyinstruction_component = components::verify_instruction::NewComponentImpl::new(
+            cairo_claim.verify_instruction.as_snap().unwrap(),
+            interaction_claim.verify_instruction.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let memory_address_to_id_component =
+            components::memory_address_to_id::NewComponentImpl::new(
+            cairo_claim.memory_address_to_id.as_snap().unwrap(),
+            interaction_claim.memory_address_to_id.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let claim_memory_id_to_big = cairo_claim.memory_id_to_big.as_snap().unwrap();
+        let interaction_claim_memory_id_to_big = interaction_claim
+            .memory_id_to_big
+            .as_snap()
+            .unwrap();
+        assert!(
+            claim_memory_id_to_big
+                .big_log_sizes
+                .len() == interaction_claim_memory_id_to_big
+                .big_claimed_sums
+                .len(),
+        );
+        let mut memory_id_to_value_components = array![];
+        let mut offset: u32 = LARGE_MEMORY_VALUE_ID_BASE;
+        for i in 0..claim_memory_id_to_big.big_log_sizes.len() {
+            let log_size = claim_memory_id_to_big.big_log_sizes[i];
+            let claimed_sum = interaction_claim_memory_id_to_big.big_claimed_sums[i];
+            memory_id_to_value_components
+                .append(
+                    components::memory_id_to_big::NewBigComponentImpl::new(
+                        *log_size, offset, *claimed_sum, common_lookup_elements,
+                    ),
+                );
+            offset = offset + pow2(*log_size);
+        }
+        // Check that IDs in (ID -> Value) do not overflow P.
+        assert!(offset <= P_U32);
+
+        let small_memory_id_to_value_component =
+            components::memory_id_to_small::NewComponentImpl::new(
+            cairo_claim.memory_id_to_small.as_snap().unwrap(),
+            interaction_claim.memory_id_to_small.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let range_checks_components = RangeChecksComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let verify_bitwise_xor_4_component =
+            components::verify_bitwise_xor_4::NewComponentImpl::new(
+            cairo_claim.verify_bitwise_xor_4.as_snap().unwrap(),
+            interaction_claim.verify_bitwise_xor_4.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let verify_bitwise_xor_7_component =
+            components::verify_bitwise_xor_7::NewComponentImpl::new(
+            cairo_claim.verify_bitwise_xor_7.as_snap().unwrap(),
+            interaction_claim.verify_bitwise_xor_7.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let verify_bitwise_xor_8_component =
+            components::verify_bitwise_xor_8::NewComponentImpl::new(
+            cairo_claim.verify_bitwise_xor_8.as_snap().unwrap(),
+            interaction_claim.verify_bitwise_xor_8.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let verify_bitwise_xor_9_component =
+            components::verify_bitwise_xor_9::NewComponentImpl::new(
+            cairo_claim.verify_bitwise_xor_9.as_snap().unwrap(),
+            interaction_claim.verify_bitwise_xor_9.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        CairoAir {
+            opcodes: opcode_components,
+            verify_instruction: verifyinstruction_component,
+            blake_context: blake_context_component,
+            builtins: builtins_components,
+            memory_address_to_id: memory_address_to_id_component,
+            memory_id_to_big: memory_id_to_value_components,
+            memory_id_to_small: small_memory_id_to_value_component,
+            range_checks: range_checks_components,
+            verify_bitwise_xor_4: verify_bitwise_xor_4_component,
+            verify_bitwise_xor_7: verify_bitwise_xor_7_component,
+            verify_bitwise_xor_8: verify_bitwise_xor_8_component,
+            verify_bitwise_xor_9: verify_bitwise_xor_9_component,
+            public_data: cairo_claim.public_data.clone(),
+        }
+    }
+}
+
+#[cfg(and(feature: "poseidon252_verifier", not(feature: "poseidon_outputs_packing")))]
+pub impl CairoAirImpl of Air<CairoAir> {
+    fn eval_composition_polynomial_at_point(
+        self: @CairoAir,
+        point: CirclePoint<QM31>,
+        mask_values: TreeSpan<ColumnSpan<Span<QM31>>>,
+        random_coeff: QM31,
+    ) -> QM31 {
+        let mut sum = Zero::zero();
+
+        let [
+            preprocessed_mask_values,
+            mut trace_mask_values,
+            mut interaction_trace_mask_values,
+            _composition_trace_mask_values,
+        ]: [ColumnSpan<Span<QM31>>; 4] =
+            (*mask_values
+            .try_into()
+            .unwrap())
+            .unbox();
+
+        let mut preprocessed_mask_values = PreprocessedMaskValuesImpl::new(
+            preprocessed_mask_values,
+        );
+
+        let CairoAir {
+            opcodes,
+            verify_instruction,
+            blake_context,
+            builtins,
+            memory_address_to_id,
+            memory_id_to_big,
+            memory_id_to_small,
+            range_checks,
+            verify_bitwise_xor_4,
+            verify_bitwise_xor_7,
+            verify_bitwise_xor_8,
+            verify_bitwise_xor_9,
+            public_data,
+        } = self;
+
+        opcodes
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+            );
+        verify_instruction
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        blake_context
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+            );
+        builtins
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                public_data,
+            );
+        memory_address_to_id
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        for memory_id_to_value_big_component in memory_id_to_big.span() {
+            memory_id_to_value_big_component
+                .evaluate_constraints_at_point(
+                    ref sum,
+                    ref preprocessed_mask_values,
+                    ref trace_mask_values,
+                    ref interaction_trace_mask_values,
+                    random_coeff,
+                    [].span(),
+                );
+        }
+        memory_id_to_small
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        range_checks
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+            );
+        verify_bitwise_xor_4
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        verify_bitwise_xor_7
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        verify_bitwise_xor_8
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        verify_bitwise_xor_9
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+
+        validate_mask_usage(
+            preprocessed_mask_values, trace_mask_values, interaction_trace_mask_values,
+        );
+        sum
+    }
+}
+
+
+#[derive(Drop)]
+#[cfg(and(feature: "poseidon252_verifier", feature: "poseidon_outputs_packing"))]
+pub struct CairoAir {
+    opcodes: OpcodeComponents,
+    verify_instruction: components::verify_instruction::Component,
+    blake_context: BlakeContextComponents,
+    builtins: BuiltinComponents,
+    poseidon_context: PoseidonContextComponents,
+    memory_address_to_id: components::memory_address_to_id::Component,
+    memory_id_to_big: Array<components::memory_id_to_big::BigComponent>,
+    memory_id_to_small: components::memory_id_to_small::Component,
+    range_checks: RangeChecksComponents,
+    verify_bitwise_xor_4: components::verify_bitwise_xor_4::Component,
+    verify_bitwise_xor_7: components::verify_bitwise_xor_7::Component,
+    verify_bitwise_xor_8: components::verify_bitwise_xor_8::Component,
+    verify_bitwise_xor_9: components::verify_bitwise_xor_9::Component,
+    public_data: stwo_cairo_air::PublicData,
+}
+
+#[generate_trait]
+#[cfg(and(feature: "poseidon252_verifier", feature: "poseidon_outputs_packing"))]
+pub impl CairoAirNewImpl of CairoAirNewTrait {
+    fn new(
+        cairo_claim: @CairoClaim,
+        common_lookup_elements: @crate::CommonLookupElements,
+        interaction_claim: @CairoInteractionClaim,
+    ) -> CairoAir {
+        assert!(
+            cairo_claim.partial_ec_mul_generic.is_none(),
+            "Partial EC Mul Generic is not supported.",
+        );
+        assert!(
+            interaction_claim.partial_ec_mul_generic.is_none(),
+            "Partial EC Mul Generic is not supported.",
+        );
+
+        let opcode_components = OpcodeComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let blake_context_component = BlakeContextComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let builtins_components = BuiltinComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let poseidon_context_components = PoseidonContextComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let verifyinstruction_component = components::verify_instruction::NewComponentImpl::new(
+            cairo_claim.verify_instruction.as_snap().unwrap(),
+            interaction_claim.verify_instruction.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let memory_address_to_id_component =
+            components::memory_address_to_id::NewComponentImpl::new(
+            cairo_claim.memory_address_to_id.as_snap().unwrap(),
+            interaction_claim.memory_address_to_id.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let claim_memory_id_to_big = cairo_claim.memory_id_to_big.as_snap().unwrap();
+        let interaction_claim_memory_id_to_big = interaction_claim
+            .memory_id_to_big
+            .as_snap()
+            .unwrap();
+        assert!(
+            claim_memory_id_to_big
+                .big_log_sizes
+                .len() == interaction_claim_memory_id_to_big
+                .big_claimed_sums
+                .len(),
+        );
+        let mut memory_id_to_value_components = array![];
+        let mut offset: u32 = LARGE_MEMORY_VALUE_ID_BASE;
+        for i in 0..claim_memory_id_to_big.big_log_sizes.len() {
+            let log_size = claim_memory_id_to_big.big_log_sizes[i];
+            let claimed_sum = interaction_claim_memory_id_to_big.big_claimed_sums[i];
+            memory_id_to_value_components
+                .append(
+                    components::memory_id_to_big::NewBigComponentImpl::new(
+                        *log_size, offset, *claimed_sum, common_lookup_elements,
+                    ),
+                );
+            offset = offset + pow2(*log_size);
+        }
+        // Check that IDs in (ID -> Value) do not overflow P.
+        assert!(offset <= P_U32);
+
+        let small_memory_id_to_value_component =
+            components::memory_id_to_small::NewComponentImpl::new(
+            cairo_claim.memory_id_to_small.as_snap().unwrap(),
+            interaction_claim.memory_id_to_small.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let range_checks_components = RangeChecksComponentsImpl::new(
+            cairo_claim, common_lookup_elements, interaction_claim,
+        );
+
+        let verify_bitwise_xor_4_component =
+            components::verify_bitwise_xor_4::NewComponentImpl::new(
+            cairo_claim.verify_bitwise_xor_4.as_snap().unwrap(),
+            interaction_claim.verify_bitwise_xor_4.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let verify_bitwise_xor_7_component =
+            components::verify_bitwise_xor_7::NewComponentImpl::new(
+            cairo_claim.verify_bitwise_xor_7.as_snap().unwrap(),
+            interaction_claim.verify_bitwise_xor_7.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let verify_bitwise_xor_8_component =
+            components::verify_bitwise_xor_8::NewComponentImpl::new(
+            cairo_claim.verify_bitwise_xor_8.as_snap().unwrap(),
+            interaction_claim.verify_bitwise_xor_8.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        let verify_bitwise_xor_9_component =
+            components::verify_bitwise_xor_9::NewComponentImpl::new(
+            cairo_claim.verify_bitwise_xor_9.as_snap().unwrap(),
+            interaction_claim.verify_bitwise_xor_9.as_snap().unwrap(),
+            common_lookup_elements,
+        );
+
+        CairoAir {
+            opcodes: opcode_components,
+            verify_instruction: verifyinstruction_component,
+            blake_context: blake_context_component,
+            builtins: builtins_components,
+            poseidon_context: poseidon_context_components,
+            memory_address_to_id: memory_address_to_id_component,
+            memory_id_to_big: memory_id_to_value_components,
+            memory_id_to_small: small_memory_id_to_value_component,
+            range_checks: range_checks_components,
+            verify_bitwise_xor_4: verify_bitwise_xor_4_component,
+            verify_bitwise_xor_7: verify_bitwise_xor_7_component,
+            verify_bitwise_xor_8: verify_bitwise_xor_8_component,
+            verify_bitwise_xor_9: verify_bitwise_xor_9_component,
+            public_data: cairo_claim.public_data.clone(),
+        }
+    }
+}
+
+#[cfg(and(feature: "poseidon252_verifier", feature: "poseidon_outputs_packing"))]
+pub impl CairoAirImpl of Air<CairoAir> {
+    fn eval_composition_polynomial_at_point(
+        self: @CairoAir,
+        point: CirclePoint<QM31>,
+        mask_values: TreeSpan<ColumnSpan<Span<QM31>>>,
+        random_coeff: QM31,
+    ) -> QM31 {
+        let mut sum = Zero::zero();
+
+        let [
+            preprocessed_mask_values,
+            mut trace_mask_values,
+            mut interaction_trace_mask_values,
+            _composition_trace_mask_values,
+        ]: [ColumnSpan<Span<QM31>>; 4] =
+            (*mask_values
+            .try_into()
+            .unwrap())
+            .unbox();
+
+        let mut preprocessed_mask_values = PreprocessedMaskValuesImpl::new(
+            preprocessed_mask_values,
+        );
+
+        let CairoAir {
+            opcodes,
+            verify_instruction,
+            blake_context,
+            builtins,
+            poseidon_context,
+            memory_address_to_id,
+            memory_id_to_big,
+            memory_id_to_small,
+            range_checks,
+            verify_bitwise_xor_4,
+            verify_bitwise_xor_7,
+            verify_bitwise_xor_8,
+            verify_bitwise_xor_9,
+            public_data,
+        } = self;
+
+        opcodes
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+            );
+        verify_instruction
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        blake_context
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+            );
+        builtins
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                public_data,
+            );
+        poseidon_context
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+            );
+        memory_address_to_id
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        for memory_id_to_value_big_component in memory_id_to_big.span() {
+            memory_id_to_value_big_component
+                .evaluate_constraints_at_point(
+                    ref sum,
+                    ref preprocessed_mask_values,
+                    ref trace_mask_values,
+                    ref interaction_trace_mask_values,
+                    random_coeff,
+                    [].span(),
+                );
+        }
+        memory_id_to_small
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        range_checks
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+            );
+        verify_bitwise_xor_4
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        verify_bitwise_xor_7
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        verify_bitwise_xor_8
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+        verify_bitwise_xor_9
+            .evaluate_constraints_at_point(
+                ref sum,
+                ref preprocessed_mask_values,
+                ref trace_mask_values,
+                ref interaction_trace_mask_values,
+                random_coeff,
+                [].span(),
+            );
+
+        validate_mask_usage(
+            preprocessed_mask_values, trace_mask_values, interaction_trace_mask_values,
+        );
+        sum
+    }
+}

@@ -39,7 +39,36 @@ This should produce:
 
 ```text
 target/dev/pq_cairo_merkle.sierra.json
+target/dev/pq_cairo_merkle.executable.json
 ```
+
+## Local Stwo Proof
+
+The local proving path uses the checked-out `packages/stwo-cairo` prover directly. It does not call Atlantic and does not upload the witness/input file.
+
+This stwo-cairo checkout is pinned to Scarb/Cairo 2.15.0 for executable compatibility. If your default `scarb` is newer, pass an explicit binary:
+
+```sh
+SCARB_BIN=/tmp/scarb-v2.15.0-x86_64-unknown-linux-gnu/bin/scarb corepack yarn cairo:merkle:prove-local
+```
+
+The script builds the executable, runs it locally, generates a Stwo proof locally, verifies it with `run_and_prove --verify`, and then runs the standalone Rust verifier over:
+
+```text
+packages/cairo-merkle/target/local-proofs/merkle-proof.json
+```
+
+Prepare and run the local Cairo recursive verifier inputs with:
+
+```sh
+corepack yarn cairo:merkle:prepare-recursive-inputs
+source /home/yavor/.bashrc
+corepack yarn cairo:merkle:verify-recursive-local
+```
+
+The current local recursive verifier returns root `823984307` and uses about 17.58M Cairo steps. Atlantic/Sepolia fact registration works for the plain public Merkle fixture, but Atlantic currently fails to run the generated stwo Cairo recursive verifier artifact during trace generation. See `docs/pq-proof-testing-handoff.md` for the current query ids and debugging status.
+
+The local stwo-cairo checkout includes a small fix for Scarb executables: executable programs must use their actual entrypoint builtin list instead of the bootloader/all-builtin public segment context. Without this, simple executables can produce malformed public segment ranges and Merkle proving can fail the prover constraint sanity check.
 
 
 ## Privacy Warning
@@ -47,6 +76,8 @@ target/dev/pq_cairo_merkle.sierra.json
 The Atlantic submission flow is remote proving. It sends the compiled Cairo program and `inputs/merkle_path.txt` to Atlantic. This package's input file is a public toy fixture only.
 
 Do not use the Atlantic commands with private shielded-pool witnesses. Production private transfers need a local prover path so note secrets, Merkle path witnesses, and private transaction data never leave the user's device.
+
+Local proving prevents witness upload to a remote prover, but it is not by itself a full privacy proof. Stwo Cairo documents that it is not zero-knowledge by default, so before publishing proofs for real transfers we still need to audit exactly what the proof and public memory reveal, or add a hiding/recursive architecture that matches the shielded-pool privacy model.
 
 ## Atlantic Testnet Submission
 
