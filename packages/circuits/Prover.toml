@@ -1,0 +1,24 @@
+published_root = 0
+
+[merkle_proof]
+indices = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
+length = 0
+siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+[[new_notes]]
+nonce = 0
+owner = 0
+value = 3
+
+[[new_notes]]
+nonce = 0
+owner = 0
+value = 1
+
+[old_note]
+nonce = 0
+owner = 0
+value = 5
+
+[return]
+new_commitments = [0, 0]
