@@ -1,0 +1,21 @@
+[package]
+name = "atlantic_stwo_channel_salt"
+version = "0.1.0"
+edition = "2024_07"
+
+[lib]
+sierra = true
+casm = false
+
+[[target.executable]]
+name = "atlantic_stwo_channel_salt"
+function = "atlantic_stwo_channel_salt::main"
+sierra = true
+
+[features]
+poseidon252_verifier = ["stwo_cairo_air/poseidon252_verifier"]
+qm31_opcode = ["stwo_cairo_air/qm31_opcode"]
+
+[dependencies]
+stwo_cairo_air = { path = "../cairo_air" }
+cairo_execute = ">=2.18.0"

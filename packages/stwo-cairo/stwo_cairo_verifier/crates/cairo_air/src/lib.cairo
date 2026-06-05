@@ -21,6 +21,7 @@ use poseidon252_verifier_uses::*;
 #[cfg(not(feature: "poseidon252_verifier"))]
 mod blake2s_verifier_uses {
     pub use core::blake::{blake2s_compress, blake2s_finalize};
+    pub use stwo_verifier_utils::blake2s::encode_felt_in_limbs_to_array;
     pub use stwo_verifier_utils::BLAKE2S_256_INITIAL_STATE;
 }
 #[cfg(not(feature: "poseidon252_verifier"))]
@@ -44,7 +45,7 @@ use stwo_verifier_core::fields::qm31::QM31;
 use stwo_verifier_core::fields::qm31::{PackedUnreducedQM31, PackedUnreducedQM31Trait};
 use stwo_verifier_core::pcs::PcsConfigTrait;
 use stwo_verifier_core::pcs::verifier::{CommitmentSchemeVerifierImpl, get_trace_lde_log_size};
-use stwo_verifier_core::utils::{ArrayImpl, OptionImpl, pack_into_qm31s, pow2};
+use stwo_verifier_core::utils::{ArrayImpl, OptionImpl, pack_into_qm31s, pack_qm31, pow2};
 use stwo_verifier_core::verifier::{StarkProof, verify};
 use stwo_verifier_utils::{MemorySection, PubMemoryValue, construct_f252};
 use crate::components::memory_address_to_id::*;
@@ -179,6 +180,50 @@ pub fn get_verification_output(proof: @CairoProof) -> VerificationOutput {
     VerificationOutput { program_hash, output_hash }
 }
 
+pub fn debug_get_raw_public_output(proof: @CairoProof) -> Array<felt252> {
+    let mut output_memory = *proof.claim.public_data.public_memory.output;
+    let mut output = ArrayTrait::new();
+    output.append(201);
+    output.append(output_memory.len().into());
+
+    while output_memory.len() != 0 {
+        let (_, val) = *output_memory.pop_front().unwrap();
+        output.append(construct_f252(BoxTrait::new(val)));
+    };
+
+    output
+}
+
+#[cfg(not(feature: "poseidon252_verifier"))]
+pub fn debug_get_blake_program_hash(proof: @CairoProof) -> Array<felt252> {
+    let program_hash = construct_f252(
+        encode_and_hash_program_memory_section(*proof.claim.public_data.public_memory.program),
+    );
+
+    let mut output = ArrayTrait::new();
+    output.append(202);
+    output.append(program_hash);
+    output
+}
+
+#[cfg(not(feature: "poseidon252_verifier"))]
+pub fn debug_get_blake_program_encoded_summary(proof: @CairoProof) -> Array<felt252> {
+    let program = *proof.claim.public_data.public_memory.program;
+    let program_len = program.len();
+    let mut encoded_values = array![];
+
+    for entry in program {
+        let (_id, val) = *entry;
+        encode_felt_in_limbs_to_array(val, ref encoded_values);
+    }
+
+    let mut output = ArrayTrait::new();
+    output.append(203);
+    output.append(program_len.into());
+    output.append(encoded_values.len().into());
+    output
+}
+
 pub fn verify_cairo(proof: CairoProof) {
     let CairoProof { claim, interaction_pow, interaction_claim, stark_proof, channel_salt } = proof;
 
@@ -260,6 +305,731 @@ pub fn verify_cairo(proof: CairoProof) {
         ref channel,
         SECURITY_BITS,
     );
+}
+
+
+pub fn debug_verify_cairo_claim(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof: _stark_proof, channel_salt: _channel_salt,
+    } = proof;
+
+    verify_claim(@claim);
+
+    let mut output = ArrayTrait::new();
+    output.append(101);
+    output
+}
+
+
+
+
+pub fn debug_verify_cairo_channel_pack(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof: _stark_proof, channel_salt,
+    } = proof;
+
+    verify_claim(@claim);
+
+    let channel_salt_as_felt: QM31 = M31Trait::reduce_u32(channel_salt).into();
+    let packed = pack_qm31(1, channel_salt_as_felt);
+
+    let mut output = ArrayTrait::new();
+    output.append(223);
+    output.append(channel_salt.into());
+    output.append(packed);
+    output
+}
+
+#[cfg(feature: "poseidon252_verifier")]
+pub fn debug_verify_cairo_channel_manual_hash(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof: _stark_proof, channel_salt,
+    } = proof;
+
+    verify_claim(@claim);
+
+    let channel_salt_as_felt: QM31 = M31Trait::reduce_u32(channel_salt).into();
+    let packed = pack_qm31(1, channel_salt_as_felt);
+    let digest = poseidon_hash_span(array![0, packed].span());
+
+    let mut output = ArrayTrait::new();
+    output.append(224);
+    output.append(channel_salt.into());
+    output.append(digest);
+    output
+}
+
+pub fn debug_verify_cairo_channel_salt(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof: _stark_proof, channel_salt,
+    } = proof;
+
+    verify_claim(@claim);
+
+    let mut channel: Channel = Default::default();
+    let channel_salt_as_felt: QM31 = M31Trait::reduce_u32(channel_salt).into();
+    channel.mix_felts([channel_salt_as_felt].span());
+
+    let mut output = ArrayTrait::new();
+    output.append(221);
+    output.append(channel_salt.into());
+    output
+}
+
+pub fn debug_verify_cairo_pcs_mix(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof, channel_salt: _channel_salt,
+    } = proof;
+
+    let pcs_config = stark_proof.commitment_scheme_proof.config;
+    assert!(pcs_config.lifting_log_size.is_none());
+    verify_claim(@claim);
+
+    let mut channel: Channel = Default::default();
+    pcs_config.mix_into(ref channel);
+
+    let mut output = ArrayTrait::new();
+    output.append(222);
+    output.append(pcs_config.fri_config.log_blowup_factor.into());
+    output
+}
+
+pub fn debug_verify_cairo_channel_config(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof, channel_salt,
+    } = proof;
+
+    let pcs_config = stark_proof.commitment_scheme_proof.config;
+    assert!(pcs_config.lifting_log_size.is_none());
+    verify_claim(@claim);
+
+    let mut channel: Channel = Default::default();
+    let channel_salt_as_felt: QM31 = M31Trait::reduce_u32(channel_salt).into();
+    channel.mix_felts([channel_salt_as_felt].span());
+    pcs_config.mix_into(ref channel);
+
+    let mut output = ArrayTrait::new();
+    output.append(211);
+    output.append(pcs_config.fri_config.log_blowup_factor.into());
+    output
+}
+
+pub fn debug_verify_cairo_commitment_unpack(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof, channel_salt,
+    } = proof;
+
+    let pcs_config = stark_proof.commitment_scheme_proof.config;
+    assert!(pcs_config.lifting_log_size.is_none());
+    verify_claim(@claim);
+
+    let mut channel: Channel = Default::default();
+    let channel_salt_as_felt: QM31 = M31Trait::reduce_u32(channel_salt).into();
+    channel.mix_felts([channel_salt_as_felt].span());
+    pcs_config.mix_into(ref channel);
+
+    let commitments: @Box<[Hash; 4]> = stark_proof
+        .commitment_scheme_proof
+        .commitments
+        .try_into()
+        .unwrap();
+    let [
+        preprocessed_commitment,
+        _trace_commitment,
+        _interaction_trace_commitment,
+        _composition_commitment,
+    ] = commitments.unbox();
+
+    let log_sizes: @Box<[Span<u32>; 3]> = claim.log_sizes().span().try_into().unwrap();
+    let [preprocessed_log_sizes, trace_log_sizes, interaction_trace_log_sizes] = log_sizes.unbox();
+
+    let log_blowup_factor = pcs_config.fri_config.log_blowup_factor;
+    let expected_preprocessed_root = preprocessed_root(log_blowup_factor);
+    assert!(preprocessed_commitment == expected_preprocessed_root);
+
+    let mut output = ArrayTrait::new();
+    output.append(212);
+    output.append(log_blowup_factor.into());
+    output.append(preprocessed_log_sizes.len().into());
+    output.append(trace_log_sizes.len().into());
+    output.append(interaction_trace_log_sizes.len().into());
+    output
+}
+
+pub fn debug_verify_cairo_preprocessed_commit(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof, channel_salt,
+    } = proof;
+
+    let pcs_config = stark_proof.commitment_scheme_proof.config;
+    assert!(pcs_config.lifting_log_size.is_none());
+    verify_claim(@claim);
+
+    let mut channel: Channel = Default::default();
+    let channel_salt_as_felt: QM31 = M31Trait::reduce_u32(channel_salt).into();
+    channel.mix_felts([channel_salt_as_felt].span());
+    pcs_config.mix_into(ref channel);
+    let mut commitment_scheme = CommitmentSchemeVerifierImpl::new();
+
+    let commitments: @Box<[Hash; 4]> = stark_proof
+        .commitment_scheme_proof
+        .commitments
+        .try_into()
+        .unwrap();
+    let [
+        preprocessed_commitment,
+        _trace_commitment,
+        _interaction_trace_commitment,
+        _composition_commitment,
+    ] = commitments.unbox();
+
+    let log_sizes: @Box<[Span<u32>; 3]> = claim.log_sizes().span().try_into().unwrap();
+    let [preprocessed_log_sizes, _trace_log_sizes, _interaction_trace_log_sizes] =
+        log_sizes
+        .unbox();
+
+    let log_blowup_factor = pcs_config.fri_config.log_blowup_factor;
+    let expected_preprocessed_root = preprocessed_root(log_blowup_factor);
+    assert!(preprocessed_commitment == expected_preprocessed_root);
+    commitment_scheme
+        .commit(preprocessed_commitment, preprocessed_log_sizes, ref channel, log_blowup_factor);
+
+    let mut output = ArrayTrait::new();
+    output.append(213);
+    output.append(log_blowup_factor.into());
+    output
+}
+
+pub fn debug_verify_cairo_claim_mix(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof, channel_salt,
+    } = proof;
+
+    let pcs_config = stark_proof.commitment_scheme_proof.config;
+    assert!(pcs_config.lifting_log_size.is_none());
+    verify_claim(@claim);
+
+    let mut channel: Channel = Default::default();
+    let channel_salt_as_felt: QM31 = M31Trait::reduce_u32(channel_salt).into();
+    channel.mix_felts([channel_salt_as_felt].span());
+    pcs_config.mix_into(ref channel);
+    let mut commitment_scheme = CommitmentSchemeVerifierImpl::new();
+
+    let commitments: @Box<[Hash; 4]> = stark_proof
+        .commitment_scheme_proof
+        .commitments
+        .try_into()
+        .unwrap();
+    let [
+        preprocessed_commitment,
+        _trace_commitment,
+        _interaction_trace_commitment,
+        _composition_commitment,
+    ] = commitments.unbox();
+
+    let log_sizes: @Box<[Span<u32>; 3]> = claim.log_sizes().span().try_into().unwrap();
+    let [preprocessed_log_sizes, _trace_log_sizes, _interaction_trace_log_sizes] =
+        log_sizes
+        .unbox();
+
+    let log_blowup_factor = pcs_config.fri_config.log_blowup_factor;
+    let expected_preprocessed_root = preprocessed_root(log_blowup_factor);
+    assert!(preprocessed_commitment == expected_preprocessed_root);
+    commitment_scheme
+        .commit(preprocessed_commitment, preprocessed_log_sizes, ref channel, log_blowup_factor);
+    claim.mix_into(ref channel);
+
+    let mut output = ArrayTrait::new();
+    output.append(214);
+    output.append(log_blowup_factor.into());
+    output
+}
+
+pub fn debug_verify_cairo_preprocessed(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof, channel_salt,
+    } = proof;
+
+    let pcs_config = stark_proof.commitment_scheme_proof.config;
+    assert!(pcs_config.lifting_log_size.is_none());
+    verify_claim(@claim);
+
+    let mut channel: Channel = Default::default();
+    let channel_salt_as_felt: QM31 = M31Trait::reduce_u32(channel_salt).into();
+    channel.mix_felts([channel_salt_as_felt].span());
+
+    pcs_config.mix_into(ref channel);
+    let mut commitment_scheme = CommitmentSchemeVerifierImpl::new();
+
+    let commitments: @Box<[Hash; 4]> = stark_proof
+        .commitment_scheme_proof
+        .commitments
+        .try_into()
+        .unwrap();
+    let [
+        preprocessed_commitment,
+        _trace_commitment,
+        _interaction_trace_commitment,
+        _composition_commitment,
+    ] = commitments.unbox();
+
+    let log_sizes: @Box<[Span<u32>; 3]> = claim.log_sizes().span().try_into().unwrap();
+    let [preprocessed_log_sizes, trace_log_sizes, interaction_trace_log_sizes] = log_sizes.unbox();
+
+    let log_blowup_factor = pcs_config.fri_config.log_blowup_factor;
+    let expected_preprocessed_root = preprocessed_root(log_blowup_factor);
+    assert!(preprocessed_commitment == expected_preprocessed_root);
+    commitment_scheme
+        .commit(preprocessed_commitment, preprocessed_log_sizes, ref channel, log_blowup_factor);
+    claim.mix_into(ref channel);
+
+    let mut output = ArrayTrait::new();
+    output.append(201);
+    output.append(log_blowup_factor.into());
+    output.append(preprocessed_log_sizes.len().into());
+    output.append(trace_log_sizes.len().into());
+    output.append(interaction_trace_log_sizes.len().into());
+    output
+}
+
+pub fn debug_verify_cairo_pow(proof: CairoProof) -> Array<felt252> {
+    let CairoProof { claim, interaction_pow, interaction_claim: _interaction_claim, stark_proof, channel_salt } =
+        proof;
+
+    let pcs_config = stark_proof.commitment_scheme_proof.config;
+    assert!(pcs_config.lifting_log_size.is_none());
+    verify_claim(@claim);
+
+    let mut channel: Channel = Default::default();
+    let channel_salt_as_felt: QM31 = M31Trait::reduce_u32(channel_salt).into();
+    channel.mix_felts([channel_salt_as_felt].span());
+
+    pcs_config.mix_into(ref channel);
+    let mut commitment_scheme = CommitmentSchemeVerifierImpl::new();
+
+    let commitments: @Box<[Hash; 4]> = stark_proof
+        .commitment_scheme_proof
+        .commitments
+        .try_into()
+        .unwrap();
+    let [
+        preprocessed_commitment,
+        trace_commitment,
+        _interaction_trace_commitment,
+        _composition_commitment,
+    ] = commitments.unbox();
+
+    let log_sizes: @Box<[Span<u32>; 3]> = claim.log_sizes().span().try_into().unwrap();
+    let [preprocessed_log_sizes, trace_log_sizes, _interaction_trace_log_sizes] = log_sizes.unbox();
+
+    let log_blowup_factor = pcs_config.fri_config.log_blowup_factor;
+    let expected_preprocessed_root = preprocessed_root(log_blowup_factor);
+    assert!(preprocessed_commitment == expected_preprocessed_root);
+    commitment_scheme
+        .commit(preprocessed_commitment, preprocessed_log_sizes, ref channel, log_blowup_factor);
+    claim.mix_into(ref channel);
+
+    commitment_scheme.commit(trace_commitment, trace_log_sizes, ref channel, log_blowup_factor);
+    assert!(
+        channel.verify_pow_nonce(INTERACTION_POW_BITS, interaction_pow),
+        "{}",
+        CairoVerificationError::InteractionProofOfWork,
+    );
+    channel.mix_u64(interaction_pow);
+
+    let mut output = ArrayTrait::new();
+    output.append(301);
+    output.append(log_blowup_factor.into());
+    output.append(interaction_pow.into());
+    output
+}
+
+pub fn debug_verify_cairo_lookup(proof: CairoProof) -> Array<felt252> {
+    let CairoProof { claim, interaction_pow, interaction_claim, stark_proof, channel_salt } = proof;
+
+    let pcs_config = stark_proof.commitment_scheme_proof.config;
+    assert!(pcs_config.lifting_log_size.is_none());
+    verify_claim(@claim);
+
+    let mut channel: Channel = Default::default();
+    let channel_salt_as_felt: QM31 = M31Trait::reduce_u32(channel_salt).into();
+    channel.mix_felts([channel_salt_as_felt].span());
+
+    pcs_config.mix_into(ref channel);
+    let mut commitment_scheme = CommitmentSchemeVerifierImpl::new();
+
+    let commitments: @Box<[Hash; 4]> = stark_proof
+        .commitment_scheme_proof
+        .commitments
+        .try_into()
+        .unwrap();
+    let [
+        preprocessed_commitment,
+        trace_commitment,
+        _interaction_trace_commitment,
+        _composition_commitment,
+    ] = commitments.unbox();
+
+    let log_sizes: @Box<[Span<u32>; 3]> = claim.log_sizes().span().try_into().unwrap();
+    let [preprocessed_log_sizes, trace_log_sizes, _interaction_trace_log_sizes] = log_sizes.unbox();
+
+    let log_blowup_factor = pcs_config.fri_config.log_blowup_factor;
+    let expected_preprocessed_root = preprocessed_root(log_blowup_factor);
+    assert!(preprocessed_commitment == expected_preprocessed_root);
+    commitment_scheme
+        .commit(preprocessed_commitment, preprocessed_log_sizes, ref channel, log_blowup_factor);
+    claim.mix_into(ref channel);
+
+    commitment_scheme.commit(trace_commitment, trace_log_sizes, ref channel, log_blowup_factor);
+    assert!(
+        channel.verify_pow_nonce(INTERACTION_POW_BITS, interaction_pow),
+        "{}",
+        CairoVerificationError::InteractionProofOfWork,
+    );
+    channel.mix_u64(interaction_pow);
+
+    let common_lookup_elements = LookupElementsImpl::draw(ref channel);
+    assert!(
+        lookup_sum(@claim, @common_lookup_elements, @interaction_claim).is_zero(),
+        "{}",
+        CairoVerificationError::InvalidLogupSum,
+    );
+
+    let mut output = ArrayTrait::new();
+    output.append(401);
+    output.append(log_blowup_factor.into());
+    output
+}
+
+pub fn debug_verify_cairo_air(proof: CairoProof) -> Array<felt252> {
+    let CairoProof { claim, interaction_pow, interaction_claim, stark_proof, channel_salt } = proof;
+
+    let pcs_config = stark_proof.commitment_scheme_proof.config;
+    assert!(pcs_config.lifting_log_size.is_none());
+    verify_claim(@claim);
+
+    let mut channel: Channel = Default::default();
+    let channel_salt_as_felt: QM31 = M31Trait::reduce_u32(channel_salt).into();
+    channel.mix_felts([channel_salt_as_felt].span());
+
+    pcs_config.mix_into(ref channel);
+    let mut commitment_scheme = CommitmentSchemeVerifierImpl::new();
+
+    let commitments: @Box<[Hash; 4]> = stark_proof
+        .commitment_scheme_proof
+        .commitments
+        .try_into()
+        .unwrap();
+    let [
+        preprocessed_commitment,
+        trace_commitment,
+        interaction_trace_commitment,
+        _composition_commitment,
+    ] = commitments.unbox();
+
+    let log_sizes: @Box<[Span<u32>; 3]> = claim.log_sizes().span().try_into().unwrap();
+    let [preprocessed_log_sizes, trace_log_sizes, interaction_trace_log_sizes] = log_sizes.unbox();
+
+    let log_blowup_factor = pcs_config.fri_config.log_blowup_factor;
+    let expected_preprocessed_root = preprocessed_root(log_blowup_factor);
+    assert!(preprocessed_commitment == expected_preprocessed_root);
+    commitment_scheme
+        .commit(preprocessed_commitment, preprocessed_log_sizes, ref channel, log_blowup_factor);
+    claim.mix_into(ref channel);
+
+    commitment_scheme.commit(trace_commitment, trace_log_sizes, ref channel, log_blowup_factor);
+    assert!(
+        channel.verify_pow_nonce(INTERACTION_POW_BITS, interaction_pow),
+        "{}",
+        CairoVerificationError::InteractionProofOfWork,
+    );
+    channel.mix_u64(interaction_pow);
+
+    let common_lookup_elements = LookupElementsImpl::draw(ref channel);
+    assert!(
+        lookup_sum(@claim, @common_lookup_elements, @interaction_claim).is_zero(),
+        "{}",
+        CairoVerificationError::InvalidLogupSum,
+    );
+
+    interaction_claim.mix_into(ref channel);
+    commitment_scheme
+        .commit(
+            interaction_trace_commitment,
+            interaction_trace_log_sizes,
+            ref channel,
+            log_blowup_factor,
+        );
+
+    let trace_lde_log_size = get_trace_lde_log_size(@commitment_scheme.trees);
+    let trace_log_degree_bound = trace_lde_log_size - pcs_config.fri_config.log_blowup_factor;
+    let _cairo_air = CairoAirNewImpl::new(@claim, @common_lookup_elements, @interaction_claim);
+
+    let mut output = ArrayTrait::new();
+    output.append(501);
+    output.append(log_blowup_factor.into());
+    output.append(trace_lde_log_size.into());
+    output.append(trace_log_degree_bound.into());
+    output
+}
+
+
+
+
+pub fn debug_program_first_entry(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof: _stark_proof, channel_salt: _channel_salt,
+    } = proof;
+
+    debug_program_first_entry_from_claim(@claim)
+}
+
+pub fn debug_program_multi_pop(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof: _stark_proof, channel_salt: _channel_salt,
+    } = proof;
+
+    debug_program_multi_pop_from_claim(@claim)
+}
+
+fn debug_program_first_entry_from_claim(claim: @CairoClaim) -> Array<felt252> {
+    let PublicData {
+        public_memory: PublicMemory {
+            program, public_segments: _public_segments, output: _output,
+            safe_call_ids: _safe_call_ids,
+            }, initial_state: _initial_state, final_state: _final_state,
+    } = claim.public_data;
+
+    let mut program = *program;
+    let (id, value) = *program.pop_front().unwrap();
+    let [v0, v1, _v2, _v3, _v4, _v5, _v6, _v7] = value;
+
+    let mut output = ArrayTrait::new();
+    output.append(131);
+    output.append(id.into());
+    output.append(v0.into());
+    output.append(v1.into());
+    output
+}
+
+fn debug_program_multi_pop_from_claim(claim: @CairoClaim) -> Array<felt252> {
+    let PublicData {
+        public_memory: PublicMemory {
+            program, public_segments: _public_segments, output: _output,
+            safe_call_ids: _safe_call_ids,
+            }, initial_state: _initial_state, final_state: _final_state,
+    } = claim.public_data;
+
+    let mut program = *program;
+    let [
+        (id0, value0),
+        (id1, value1),
+        (_id2, _value2),
+        (_id3, _value3),
+        (_id4, _value4),
+        (_id5, _value5),
+    ]: [PubMemoryValue; 6] = (*program.multi_pop_front().unwrap()).unbox();
+    let [v00, v01, _v02, _v03, _v04, _v05, _v06, _v07] = value0;
+    let [v10, _v11, _v12, _v13, _v14, _v15, _v16, _v17] = value1;
+
+    let mut output = ArrayTrait::new();
+    output.append(132);
+    output.append(id0.into());
+    output.append(v00.into());
+    output.append(v01.into());
+    output.append(id1.into());
+    output.append(v10.into());
+    output
+}
+
+pub fn debug_verify_claim_builtins(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof: _stark_proof, channel_salt: _channel_salt,
+    } = proof;
+
+    verify_claim_builtins_only(@claim);
+
+    let mut output = ArrayTrait::new();
+    output.append(121);
+    output
+}
+
+pub fn debug_verify_claim_program(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof: _stark_proof, channel_salt: _channel_salt,
+    } = proof;
+
+    verify_claim_program_only(@claim);
+
+    let mut output = ArrayTrait::new();
+    output.append(122);
+    output
+}
+
+pub fn debug_verify_claim_registers(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof: _stark_proof, channel_salt: _channel_salt,
+    } = proof;
+
+    verify_claim_registers_only(@claim);
+
+    let mut output = ArrayTrait::new();
+    output.append(123);
+    output
+}
+
+fn verify_claim_builtins_only(claim: @CairoClaim) {
+    let PublicData {
+        public_memory: PublicMemory {
+            program: _program, public_segments, output: _output, safe_call_ids: _safe_call_ids,
+            }, initial_state: _initial_state, final_state: _final_state,
+    } = claim.public_data;
+
+    verify_builtins(
+        claim.range_check_builtin,
+        claim.range_check96_builtin,
+        claim.bitwise_builtin,
+        claim.add_mod_builtin,
+        claim.mul_mod_builtin,
+        claim.pedersen_builtin,
+        claim.pedersen_builtin_narrow_windows,
+        claim.poseidon_builtin,
+        claim.ec_op_builtin,
+        public_segments,
+    );
+}
+
+fn verify_claim_program_only(claim: @CairoClaim) {
+    let PublicData {
+        public_memory: PublicMemory {
+            program, public_segments, output: _output, safe_call_ids: _safe_call_ids,
+            }, initial_state: _initial_state, final_state: _final_state,
+    } = claim.public_data;
+
+    verify_program(*program, public_segments);
+}
+
+fn verify_claim_registers_only(claim: @CairoClaim) {
+    let PublicData {
+        public_memory: _public_memory, initial_state: CasmState {
+            pc: initial_pc, ap: initial_ap, fp: initial_fp,
+            }, final_state: CasmState {
+            pc: final_pc, ap: final_ap, fp: final_fp,
+        },
+    } = claim.public_data;
+
+    let initial_pc: u32 = (*initial_pc).into();
+    let initial_ap: u32 = (*initial_ap).into();
+    let initial_fp: u32 = (*initial_fp).into();
+    let final_pc: u32 = (*final_pc).into();
+    let final_ap: u32 = (*final_ap).into();
+    let final_fp: u32 = (*final_fp).into();
+
+    assert!(initial_pc.is_one());
+    assert!(initial_pc + 2 < initial_ap);
+    assert!(initial_fp == final_fp);
+    assert!(initial_fp == initial_ap);
+    assert!(final_pc == 5);
+    assert!(initial_ap <= final_ap);
+    assert!(
+        (*claim.memory_address_to_id).unwrap().log_size <= 29_u32 - LOG_MEMORY_ADDRESS_TO_ID_SPLIT,
+    );
+}
+
+pub fn debug_verify_claim_basics(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof: _stark_proof, channel_salt: _channel_salt,
+    } = proof;
+
+    verify_claim_basics(@claim);
+
+    let mut output = ArrayTrait::new();
+    output.append(111);
+    output
+}
+
+pub fn debug_verify_claim_uses(proof: CairoProof) -> Array<felt252> {
+    let CairoProof {
+        claim, interaction_pow: _interaction_pow, interaction_claim: _interaction_claim,
+        stark_proof: _stark_proof, channel_salt: _channel_salt,
+    } = proof;
+
+    verify_claim_basics(@claim);
+    let opcodes_uses = verify_claim_relation_uses_without_squash(@claim);
+
+    let mut output = ArrayTrait::new();
+    output.append(112);
+    output.append(opcodes_uses.into());
+    output
+}
+
+fn verify_claim_basics(claim: @CairoClaim) {
+    let PublicData {
+        public_memory: PublicMemory {
+            program, public_segments, output: _output, safe_call_ids: _safe_call_ids,
+            }, initial_state: CasmState {
+            pc: initial_pc, ap: initial_ap, fp: initial_fp,
+            }, final_state: CasmState {
+            pc: final_pc, ap: final_ap, fp: final_fp,
+        },
+    } = claim.public_data;
+
+    verify_builtins(
+        claim.range_check_builtin,
+        claim.range_check96_builtin,
+        claim.bitwise_builtin,
+        claim.add_mod_builtin,
+        claim.mul_mod_builtin,
+        claim.pedersen_builtin,
+        claim.pedersen_builtin_narrow_windows,
+        claim.poseidon_builtin,
+        claim.ec_op_builtin,
+        public_segments,
+    );
+    verify_program(*program, public_segments);
+
+    let initial_pc: u32 = (*initial_pc).into();
+    let initial_ap: u32 = (*initial_ap).into();
+    let initial_fp: u32 = (*initial_fp).into();
+    let final_pc: u32 = (*final_pc).into();
+    let final_ap: u32 = (*final_ap).into();
+    let final_fp: u32 = (*final_fp).into();
+
+    assert!(initial_pc.is_one());
+    assert!(initial_pc + 2 < initial_ap);
+    assert!(initial_fp == final_fp);
+    assert!(initial_fp == initial_ap);
+    assert!(final_pc == 5);
+    assert!(initial_ap <= final_ap);
+
+    assert!(
+        (*claim.memory_address_to_id).unwrap().log_size <= 29_u32 - LOG_MEMORY_ADDRESS_TO_ID_SPLIT,
+    );
+}
+
+fn verify_claim_relation_uses_without_squash(claim: @CairoClaim) -> u64 {
+    let mut relation_uses: RelationUsesDict = Default::default();
+    claim.accumulate_relation_uses(ref relation_uses);
+
+    let opcodes_uses = relation_uses.get('Opcodes');
+    assert!(opcodes_uses <= pow2(29).into());
+    opcodes_uses
 }
 
 /// Verifies the claim of the Cairo proof.
@@ -470,18 +1240,12 @@ fn append_optional_segment_range(ref public_claim: Array<u32>, segment: @Option<
 ///     4. jmp rel 0 (to continue execution when step padding)
 ///     5. 0 (immediate of instruction 4)
 fn verify_program(mut program: MemorySection, public_segments: @PublicSegmentRanges) {
-    let [
-        (_, program_value_0),
-        (_, program_value_1),
-        (_, program_value_2),
-        (_, _program_value_3),
-        (_, program_value_4),
-        (_, program_value_5),
-    ]: [PubMemoryValue; 6] =
-        (*program
-        .multi_pop_front()
-        .unwrap())
-        .unbox();
+    let (_, program_value_0) = *program.pop_front().unwrap();
+    let (_, program_value_1) = *program.pop_front().unwrap();
+    let (_, program_value_2) = *program.pop_front().unwrap();
+    let (_, _program_value_3) = *program.pop_front().unwrap();
+    let (_, program_value_4) = *program.pop_front().unwrap();
+    let (_, program_value_5) = *program.pop_front().unwrap();
 
     // ap += N_BUILTINS. Two felts.
     let n_builtins = public_segments.present_segments().len();

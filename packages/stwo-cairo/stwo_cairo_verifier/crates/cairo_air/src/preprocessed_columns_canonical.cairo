@@ -426,44 +426,34 @@ pub fn seq_column_idx(log_size: u32) -> PreprocessedColumnIdx {
 pub fn preprocessed_root(log_blowup_factor: u32) -> Hash {
     match log_blowup_factor - 1 {
         0 => Hash {
-            hash: BoxImpl::new(
-                [
+            hash: [
                     0x42228ea9, 0x35d2f53b, 0x360b1f98, 0x56ae39d9, 0x75e23bef, 0x32b0581c,
                     0x6e1e83b2, 0x6403ba24,
-                ],
-            ),
+            ],
         },
         1 => Hash {
-            hash: BoxImpl::new(
-                [
+            hash: [
                     0x7094e904, 0x210a38ad, 0x126b6cee, 0x57097de8, 0x1c860da1, 0x91b704b1,
                     0xc6cf280a, 0x8a211523,
-                ],
-            ),
+            ],
         },
         2 => Hash {
-            hash: BoxImpl::new(
-                [
+            hash: [
                     0x84cb79b9, 0xb050ad16, 0x69787584, 0xcf7f274f, 0x399792c8, 0xecf77fed,
                     0x458488fe, 0xe27bbcac,
-                ],
-            ),
+            ],
         },
         3 => Hash {
-            hash: BoxImpl::new(
-                [
+            hash: [
                     0x803fe777, 0x1d9267a0, 0xe383c36d, 0x2b1b4bf0, 0x9a47969f, 0xcb683ef4,
                     0x598eca47, 0x09db42f9,
-                ],
-            ),
+            ],
         },
         4 => Hash {
-            hash: BoxImpl::new(
-                [
+            hash: [
                     0xbfee7cd5, 0x429ca185, 0xa8d60ba7, 0x3856e072, 0xb88de2aa, 0x12ab5bc3,
                     0xde44271d, 0x2500318a,
-                ],
-            ),
+            ],
         },
         _ => panic!("invalid blowup factor"),
     }

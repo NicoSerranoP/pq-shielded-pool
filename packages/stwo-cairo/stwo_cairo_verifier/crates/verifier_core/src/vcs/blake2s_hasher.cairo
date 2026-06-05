@@ -8,9 +8,6 @@ use crate::vcs::hasher::MerkleHasher;
 
 const M31_ELEMENTS_IN_MSG: usize = 16;
 
-/// State for Blake2s hash.
-type Blake2sState = Box<[u32; 8]>;
-
 pub impl Blake2sMerkleHasher of MerkleHasher {
     type Hash = Blake2sHash;
 
@@ -31,7 +28,7 @@ pub impl Blake2sMerkleHasher of MerkleHasher {
             // and (children_hashes.is_none() && column_values.len() == 16 + K).
             // This is acceptable because the verifier always knows
             // the exact structure of the Merkle tree.
-            return Blake2sHash { hash: blake2s_finalize(:state, :byte_count, :msg) };
+            return Blake2sHash { hash: blake2s_finalize(:state, :byte_count, :msg).unbox() };
         }
 
         let mut byte_count = 0_u32;
@@ -49,7 +46,7 @@ pub impl Blake2sMerkleHasher of MerkleHasher {
                 [v0.into(), v1.into(), v2.into(), v3.into(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             );
             byte_count += 16;
-            return Blake2sHash { hash: blake2s_finalize(:state, :byte_count, :msg) };
+            return Blake2sHash { hash: blake2s_finalize(:state, :byte_count, :msg).unbox() };
         }
 
         // Special case #2: Single M31 column, queried value decommitment phase, common for PP tree.
@@ -57,7 +54,7 @@ pub impl Blake2sMerkleHasher of MerkleHasher {
             let [v0]: [M31; 1] = (*singleton_box).unbox();
             let msg = BoxImpl::new([v0.into(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
             byte_count += 4;
-            return Blake2sHash { hash: blake2s_finalize(:state, :byte_count, :msg) };
+            return Blake2sHash { hash: blake2s_finalize(:state, :byte_count, :msg).unbox() };
         }
 
         // Compress full 16-element blocks except the last one.
@@ -76,7 +73,7 @@ pub impl Blake2sMerkleHasher of MerkleHasher {
             if column_values.is_empty() {
                 // The last block is a full 16-element block; finalize the hash using this block as
                 // the final input.
-                return Blake2sHash { hash: blake2s_finalize(:state, :byte_count, :msg) };
+                return Blake2sHash { hash: blake2s_finalize(:state, :byte_count, :msg).unbox() };
             }
 
             state = blake2s_compress(:state, :byte_count, :msg);
@@ -93,15 +90,15 @@ pub impl Blake2sMerkleHasher of MerkleHasher {
         }
         let msg: Box<[u32; 16]> = *padded_values.span().try_into().unwrap();
         byte_count += last_block_length * 4;
-        Blake2sHash { hash: blake2s_finalize(:state, :byte_count, :msg) }
+        Blake2sHash { hash: blake2s_finalize(:state, :byte_count, :msg).unbox() }
     }
 }
 
 /// Combines two 8-element M31 blocks into a 16-element u32 block.
 #[inline]
-fn combine_u32_block(left: Box<[u32; 8]>, right: Box<[u32; 8]>) -> Box<[u32; 16]> {
-    let [l0, l1, l2, l3, l4, l5, l6, l7] = left.unbox();
-    let [r0, r1, r2, r3, r4, r5, r6, r7] = right.unbox();
+fn combine_u32_block(left: [u32; 8], right: [u32; 8]) -> Box<[u32; 16]> {
+    let [l0, l1, l2, l3, l4, l5, l6, l7] = left;
+    let [r0, r1, r2, r3, r4, r5, r6, r7] = right;
     BoxImpl::new([l0, l1, l2, l3, l4, l5, l6, l7, r0, r1, r2, r3, r4, r5, r6, r7])
 }
 
@@ -120,18 +117,18 @@ fn as_u32_block(full_block: @Box<[M31; 16]>) -> Box<[u32; 16]> {
 
 #[derive(Drop, Copy, Debug)]
 pub struct Blake2sHash {
-    pub hash: Blake2sState,
+    pub hash: [u32; 8],
 }
 
 impl Blake2sHashPartialEq of PartialEq<Blake2sHash> {
     fn eq(lhs: @Blake2sHash, rhs: @Blake2sHash) -> bool {
-        lhs.hash.unbox() == rhs.hash.unbox()
+        *lhs.hash == *rhs.hash
     }
 }
 
 impl Blake2sHashSerde of Serde<Blake2sHash> {
     fn serialize(self: @Blake2sHash, ref output: Array<felt252>) {
-        let [w0, w1, w2, w3, w4, w5, w6, w7] = self.hash.unbox();
+        let [w0, w1, w2, w3, w4, w5, w6, w7] = *self.hash;
         output.append(w0.into());
         output.append(w1.into());
         output.append(w2.into());
@@ -143,16 +140,25 @@ impl Blake2sHashSerde of Serde<Blake2sHash> {
     }
 
     fn deserialize(ref serialized: Span<felt252>) -> Option<Blake2sHash> {
-        let [w0, w1, w2, w3, w4, w5, w6, w7] = (*serialized.multi_pop_front()?).unbox();
+        if serialized.len() < 8 {
+            return None;
+        }
+
+        let w0 = *serialized.pop_front()?;
+        let w1 = *serialized.pop_front()?;
+        let w2 = *serialized.pop_front()?;
+        let w3 = *serialized.pop_front()?;
+        let w4 = *serialized.pop_front()?;
+        let w5 = *serialized.pop_front()?;
+        let w6 = *serialized.pop_front()?;
+        let w7 = *serialized.pop_front()?;
         Some(
             Blake2sHash {
-                hash: BoxImpl::new(
-                    [
-                        w0.try_into().unwrap(), w1.try_into().unwrap(), w2.try_into().unwrap(),
-                        w3.try_into().unwrap(), w4.try_into().unwrap(), w5.try_into().unwrap(),
-                        w6.try_into().unwrap(), w7.try_into().unwrap(),
-                    ],
-                ),
+                hash: [
+                    w0.try_into().unwrap(), w1.try_into().unwrap(), w2.try_into().unwrap(),
+                    w3.try_into().unwrap(), w4.try_into().unwrap(), w5.try_into().unwrap(),
+                    w6.try_into().unwrap(), w7.try_into().unwrap(),
+                ],
             },
         )
     }
@@ -160,5 +166,5 @@ impl Blake2sHashSerde of Serde<Blake2sHash> {
 
 pub fn hash_small_vals(initial_array: Array<felt252>, mut values: Span<u32>) -> Blake2sHash {
     assert!(initial_array.is_empty());
-    Blake2sHash { hash: stwo_verifier_utils::hash_u32s(values) }
+    Blake2sHash { hash: stwo_verifier_utils::hash_u32s(values).unbox() }
 }

@@ -1,0 +1,21 @@
+[package]
+name = "atlantic_stwo_program_hash_words_blake"
+version = "0.1.0"
+edition = "2024_07"
+
+[lib]
+sierra = true
+casm = false
+
+[[target.executable]]
+name = "atlantic_stwo_program_hash_words_blake"
+function = "atlantic_stwo_program_hash_words_blake::main"
+sierra = true
+
+[features]
+qm31_opcode = ["stwo_cairo_air/qm31_opcode"]
+
+[dependencies]
+stwo_cairo_air = { path = "../cairo_air" }
+stwo_verifier_utils = { path = "../verifier_utils" }
+cairo_execute = ">=2.18.0"

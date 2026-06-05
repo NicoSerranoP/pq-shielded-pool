@@ -103,21 +103,52 @@ Large-input Atlantic diagnostic:
 
 Recursive stwo Cairo verifier through Atlantic:
 
-- Status: blocked.
+- Status: still blocked for full recursive verification.
 - Failure point: `TRACE_AND_METADATA_GENERATION`.
 - Error: `Error: Failed to run cairo1 rust vm: VirtualMachine(Unexpected)`.
 
-Failed deserialize-only verifier diagnostics with `layout=auto`:
+Important narrowed findings from 2026-06-05:
 
-- `S`: `01KTC4W0V9Q8M6E1F41DTMZWHX`
-- `M`: `01KTC4Z43TJ4NMH4QVVRXSHEHE`
-- `L`: `01KTC52ADTPC24H0FJ0PFDQX17`
+- Dev-profile single-target constant diagnostic passed through Atlantic and mocked Sepolia Satellite.
+  - Package: `atlantic_stwo_constant`
+  - Query: `01KTC87835DRKAT345A3E8PQGT`
+  - Fact: `0xd898f334df46089d17634b3085e1761bcc9d0d91e0b76103fc1fe2fbb8d44366`
+- Dev-profile single-target `CairoProof` deserialization diagnostic passed through Atlantic and mocked Sepolia Satellite.
+  - Package: `atlantic_stwo_deserialize`
+  - Query: `01KTC89PFHPMGNPFMBF9TXZFRK`
+  - Fact: `0xa3f75c7771ff38a98a45bc986fc4f3de01cf7f6a2fc2e742ab33c3dce204e663`
+- Dev-profile single-target full verifier still fails during trace generation, even before proof generation.
+  - Package: `atlantic_stwo_verify`
+  - `M`, trace-only: `01KTC8JACE479015Z18T0J3XZT`
+  - `L`, trace-only: `01KTC8QBVRZV9QEKK0C0CMZ46Q`
 
-Failed full-verifier diagnostic with explicit local layout:
+Earlier failing diagnostics:
 
-- `L`, `layout=all_cairo`: `01KTC63E3YGMY4EFASMAYZBXAS`
+- Proving-profile deserialize-only verifier diagnostics with `layout=auto` failed for all tested job sizes:
+  - `S`: `01KTC4W0V9Q8M6E1F41DTMZWHX`
+  - `M`: `01KTC4Z43TJ4NMH4QVVRXSHEHE`
+  - `L`: `01KTC52ADTPC24H0FJ0PFDQX17`
+- Full verifier retry with explicit `layout=all_cairo` failed: `01KTC63E3YGMY4EFASMAYZBXAS`.
+- Single executable Sierra artifacts also failed, including a tiny constant target. The successful diagnostics used normal package `*.sierra.json` artifacts built with the dev profile.
 
-The explicit `all_cairo` failure means the issue is not just Atlantic's `layout=auto` selection. Because local execution succeeds and a simple Atlantic program accepts the same large input, the best current hypothesis is Atlantic Cairo runner compatibility with the generated stwo verifier/deserializer code.
+Current interpretation:
+
+- This is not a raw input-size issue: the echo diagnostic and the stwo deserialization diagnostic both accepted the 114,691-felt proof input through Atlantic.
+- This is not just executable selection: single-target packages avoid multi-executable ambiguity.
+- This is not just declared job size: full verifier trace generation failed with both `M` and `L`.
+- The current blocker appears to be Atlantic's Cairo VM execution of the heavy `verify_cairo` path itself. The minimal support repro should include one passing deserialization query and one failing full-verifier trace query.
+
+Diagnostic commands:
+
+```sh
+cd packages/stwo-cairo/stwo_cairo_verifier
+source /home/yavor/.bashrc
+scarb build --package atlantic_stwo_constant --features poseidon252_verifier
+scarb build --package atlantic_stwo_deserialize --features poseidon252_verifier
+scarb build --package atlantic_stwo_verify --features poseidon252_verifier
+```
+
+Use `packages/hardhat/scripts/submitAtlanticMerkle.mjs --result TRACE_GENERATION` for trace-only debugging before asking Atlantic to prove/register a fact.
 
 ## Atlantic Credits Interpretation
 
@@ -145,8 +176,9 @@ For the next private-transfer program, use the Cairo Merkle fixture as a scaffol
 
 ## Recommended Next Steps
 
-1. Send the failed recursive-verifier query ids to Herodotus/Atlantic support with the local success command and the large-input echo success query.
-2. Build smaller Cairo verifier diagnostics that deserialize `CairoProof` field by field, to isolate the exact generated Sierra pattern Atlantic's runner rejects.
-3. Keep developing private-transfer Cairo programs against the local proof workflow while treating L1 recursive verification as a currently blocked integration item.
-4. Replace the toy hash in transfer-relevant circuits with a production hash, then repeat local proving and local recursive verification before any remote submission.
-5. Add a privacy/leakage review before using any proof artifact from real transfer witnesses as public data.
+1. Send Herodotus/Atlantic support the passing dev-profile deserialization query `01KTC89PFHPMGNPFMBF9TXZFRK` and failing full-verifier trace queries `01KTC8JACE479015Z18T0J3XZT` and `01KTC8QBVRZV9QEKK0C0CMZ46Q`.
+2. Ask whether Atlantic's Cairo1 Rust VM currently supports the generated `verify_cairo` path from `stwo_cairo_air`, and whether there are VM logs behind `VirtualMachine(Unexpected)`.
+3. If support cannot unblock it quickly, split `verify_cairo` into smaller trace-only diagnostics around claim verification, channel mixing, commitment unpacking, and FRI verification to isolate the exact failing subroutine.
+4. Keep developing private-transfer Cairo programs against the local proof workflow while treating L1 recursive verification as a currently blocked integration item.
+5. Replace the toy hash in transfer-relevant circuits with a production hash, then repeat local proving and local recursive verification before any remote submission.
+6. Add a privacy/leakage review before using any proof artifact from real transfer witnesses as public data.

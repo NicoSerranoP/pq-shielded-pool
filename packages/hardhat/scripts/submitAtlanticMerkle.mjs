@@ -52,6 +52,7 @@ function parseArgs(argv) {
     network: "TESTNET",
     declaredJobSize: "S",
     layout: "auto",
+    result: "PROOF_VERIFICATION_ON_L1",
     poll: true,
     checkSatellite: true,
     dryRun: false,
@@ -81,6 +82,7 @@ function parseArgs(argv) {
     else if (arg === "--network") options.network = next().toUpperCase();
     else if (arg === "--declared-job-size") options.declaredJobSize = next().toUpperCase();
     else if (arg === "--layout") options.layout = next();
+    else if (arg === "--result") options.result = next().toUpperCase();
     else if (arg === "--program-file") options.programFile = path.resolve(next());
     else if (arg === "--input-file") options.inputFile = path.resolve(next());
     else if (arg === "--pie-file") options.pieFile = path.resolve(next());
@@ -104,6 +106,9 @@ function parseArgs(argv) {
   }
   if (!["XS", "S", "M", "L"].includes(options.declaredJobSize)) {
     throw new Error(`Unsupported declared job size: ${options.declaredJobSize}`);
+  }
+  if (!["TRACE_GENERATION", "PROOF_GENERATION", "PROOF_VERIFICATION_ON_L1", "PROOF_VERIFICATION_ON_L2"].includes(options.result)) {
+    throw new Error(`Unsupported result: ${options.result}`);
   }
   if (!Number.isFinite(options.intervalMs) || options.intervalMs <= 0) {
     throw new Error("--interval-ms must be positive");
@@ -134,6 +139,7 @@ Options:
   --mainnet           Use Atlantic MAINNET.
   --declared-job-size S|M|L|XS
   --layout LAYOUT
+  --result TRACE_GENERATION|PROOF_GENERATION|PROOF_VERIFICATION_ON_L1|PROOF_VERIFICATION_ON_L2
   --program-file PATH
   --input-file PATH
   --pie-file PATH     Submit a Cairo PIE instead of programFile/inputFile.
@@ -244,7 +250,7 @@ async function buildSubmitForm(options) {
     layout: options.layout,
     cairoVm: "rust",
     cairoVersion: "cairo1",
-    result: "PROOF_VERIFICATION_ON_L1",
+    result: options.result,
     mockFactHash: String(options.mockFactHash),
     network: options.network,
   };
@@ -345,6 +351,37 @@ function computeFact(programHash, outputs) {
     outputHash,
     factHash,
     fixtureRootOutputIndex: normalizedOutputs.findIndex(value => value === FIXTURE_ROOT),
+  };
+}
+
+function summarizeValues(values, limit = 16) {
+  const output = values ?? [];
+  return {
+    length: output.length,
+    preview: output.slice(0, limit),
+    omitted: Math.max(output.length - limit, 0),
+  };
+}
+
+function printableMetadata(metadata) {
+  if (!metadata) {
+    return null;
+  }
+
+  return {
+    ...metadata,
+    output: summarizeValues(metadata.output),
+  };
+}
+
+function printableMetadataFact(metadataFact) {
+  if (!metadataFact) {
+    return null;
+  }
+
+  return {
+    ...metadataFact,
+    outputs: summarizeValues(metadataFact.outputs),
   };
 }
 
@@ -482,8 +519,8 @@ async function main() {
     JSON.stringify(
       {
         finalQuery: query,
-        metadata,
-        metadataFact,
+        metadata: printableMetadata(metadata),
+        metadataFact: printableMetadataFact(metadataFact),
         querySharpFactHash,
         factMatchesQuerySharp: metadataFact?.factHash?.toLowerCase() === querySharpFactHash?.toLowerCase(),
         satellite,

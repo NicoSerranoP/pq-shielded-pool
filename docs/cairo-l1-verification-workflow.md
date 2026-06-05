@@ -75,13 +75,15 @@ Program output:
 steps: 17,582,452
 ```
 
-Atlantic does not yet accept this recursive verifier artifact. The plain Merkle fixture still verifies through mocked Sepolia fact registration, and a diagnostic echo program with the same 114,691-element public proof input also verifies through Atlantic. However, a deserialize-only version of the stwo Cairo verifier fails on Atlantic before metadata generation completes, for all tested job sizes:
+Atlantic does not yet accept the full recursive verifier, but the failure is now narrowed. The plain Merkle fixture still verifies through mocked Sepolia fact registration, and a diagnostic echo program with the same 114,691-element public proof input also verifies through Atlantic.
 
-- `S`: `01KTC4W0V9Q8M6E1F41DTMZWHX`
-- `M`: `01KTC4Z43TJ4NMH4QVVRXSHEHE`
-- `L`: `01KTC52ADTPC24H0FJ0PFDQX17`
+New single-target dev-profile diagnostics:
 
-Each failed with `Error: Failed to run cairo1 rust vm: VirtualMachine(Unexpected)` during `TRACE_AND_METADATA_GENERATION`. A full-verifier retry with explicit `layout=all_cairo` also failed with the same error: `01KTC63E3YGMY4EFASMAYZBXAS`. Because the same verifier artifact runs locally and the same large input is accepted by a simple Atlantic program, this currently looks like an Atlantic Cairo runner compatibility issue with the generated stwo verifier/deserializer code rather than a local proving failure.
+- `atlantic_stwo_constant` passes through mocked Sepolia fact registration: `01KTC87835DRKAT345A3E8PQGT`.
+- `atlantic_stwo_deserialize` passes through mocked Sepolia fact registration and proves that Atlantic can deserialize the full 114,691-felt `CairoProof`: `01KTC89PFHPMGNPFMBF9TXZFRK`.
+- `atlantic_stwo_verify` still fails at trace generation with both `M` and `L` job sizes: `01KTC8JACE479015Z18T0J3XZT`, `01KTC8QBVRZV9QEKK0C0CMZ46Q`.
+
+Earlier proving-profile and executable-Sierra verifier artifacts failed with the same `VirtualMachine(Unexpected)` error. The current best interpretation is that normal dev-profile package Sierra artifacts are the compatible shape for Atlantic, while the remaining blocker is Atlantic's Cairo VM execution of the heavy `verify_cairo` path itself.
 
 This does not currently look like an Atlantic credit/quota issue. Herodotus documents testnet proof verification as free, while trace generation and proof generation can still consume credits by runtime/job size. Our failed recursive-verifier jobs were accepted and then failed inside Cairo VM trace generation, not rejected at submission for billing or quota reasons.
 

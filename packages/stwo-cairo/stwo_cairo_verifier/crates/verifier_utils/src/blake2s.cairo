@@ -37,7 +37,7 @@ pub fn hash_memory_section_values(mut section: MemorySection, digest: [u32; 8]) 
 
     let (_id, [v0, v1, v2, v3, v4, v5, v6, v7]) = *head;
     let mut msg = BoxTrait::new([d0, d1, d2, d3, d4, d5, d6, d7, v0, v1, v2, v3, v4, v5, v6, v7]);
-    let mut byte_count = 64;
+    let mut byte_count = 64_u32;
 
     while let Some(head) = section.multi_pop_front::<2>() {
         // Append current value to the msg without its id and compress.
@@ -100,14 +100,33 @@ pub fn encode_felt_in_limbs_to_array(felt: [u32; 8], ref array: Array<u32>) {
     }
 }
 
+fn pop_front_u32_block_16(ref values: Span<u32>) -> Option<[u32; 16]> {
+    if values.len() < 16 {
+        return None;
+    }
+
+    let block = [
+        *values.at(0), *values.at(1), *values.at(2), *values.at(3),
+        *values.at(4), *values.at(5), *values.at(6), *values.at(7),
+        *values.at(8), *values.at(9), *values.at(10), *values.at(11),
+        *values.at(12), *values.at(13), *values.at(14), *values.at(15),
+    ];
+    for _ in 0_usize..16_usize {
+        let _ = values.pop_front();
+    };
+
+    Some(block)
+}
+
+
 pub fn hash_u32s(mut values: Span<u32>) -> Box<[u32; 8]> {
     let mut state = BoxTrait::new(BLAKE2S_256_INITIAL_STATE);
-    let mut byte_count = 0;
-    if let Some(mut msg) = values.multi_pop_front::<16>() {
+    let mut byte_count = 0_u32;
+    if let Some(mut msg) = pop_front_u32_block_16(ref values) {
         byte_count += 64;
-        while let Some(head) = values.multi_pop_front::<16>() {
+        while let Some(head) = pop_front_u32_block_16(ref values) {
             // Compress and re-fill msg.
-            state = blake2s_compress(state, byte_count, *msg);
+            state = blake2s_compress(state, byte_count, BoxTrait::new(msg));
             msg = head;
             byte_count += 64;
         }
@@ -115,11 +134,11 @@ pub fn hash_u32s(mut values: Span<u32>) -> Box<[u32; 8]> {
         // Here `msg` is the last full 16-element block, if there are no remaining values, we can
         // finalize the hash and return the result.
         if values.is_empty() {
-            return blake2s_finalize(state, byte_count, *msg);
+            return blake2s_finalize(state, byte_count, BoxTrait::new(msg));
         }
 
         // Otherwise, update the state and handle the remaining values.
-        state = blake2s_compress(state, byte_count, *msg);
+        state = blake2s_compress(state, byte_count, BoxTrait::new(msg));
     }
 
     /// pad the remaining values to a full 16-element block and hash them as a final block.
@@ -129,6 +148,7 @@ pub fn hash_u32s(mut values: Span<u32>) -> Box<[u32; 8]> {
     for _ in i..16 {
         msg.append(0);
     }
-    byte_count += i * 4;
+    let remaining_byte_count: u32 = (i * 4).try_into().unwrap();
+    byte_count += remaining_byte_count;
     blake2s_finalize(state, byte_count, *msg.span().try_into().unwrap())
 }

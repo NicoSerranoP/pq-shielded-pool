@@ -48,8 +48,9 @@ pub impl Poseidon252ChannelImpl of ChannelTrait {
 
     fn mix_felts(ref self: Poseidon252Channel, mut felts: Span<SecureField>) {
         let mut res = array![self.digest];
-        while let Some(pair) = felts.multi_pop_front::<2>() {
-            let [x, y] = (*pair).unbox();
+        while felts.len() >= 2 {
+            let x = *felts.pop_front().unwrap();
+            let y = *felts.pop_front().unwrap();
             // The first argument of `pack_qm31` is 1 so that the felt252 that
             // we will append to `res` can separate the case of a pair (x, y) of QM31
             // with x = 0 from a singleton y (which would enter the other match arm).

@@ -2,6 +2,345 @@
 version = 1
 
 [[package]]
+name = "atlantic_stwo_air"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_blake_finalize64_smoke"
+version = "0.1.0"
+dependencies = [
+ "stwo_verifier_utils",
+]
+
+[[package]]
+name = "atlantic_stwo_blake_hash16_smoke"
+version = "0.1.0"
+dependencies = [
+ "stwo_verifier_utils",
+]
+
+[[package]]
+name = "atlantic_stwo_blake_hash17_smoke"
+version = "0.1.0"
+dependencies = [
+ "stwo_verifier_utils",
+]
+
+[[package]]
+name = "atlantic_stwo_blake_smoke"
+version = "0.1.0"
+dependencies = [
+ "stwo_verifier_utils",
+]
+
+[[package]]
+name = "atlantic_stwo_channel_config"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_channel_manual_hash"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_channel_pack"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_channel_salt"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_claim"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_claim_basics"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_claim_builtins"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_claim_mix"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_claim_program"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_claim_registers"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_claim_uses"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_commitment_unpack"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_constant"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_blake_box_manual"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_core",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_blake_hash_four"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_core",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_blake_hash_no_unbox"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_core",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_blake_hash_one"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_core",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_claim_prefix"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_interaction_prefix"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_pcs_commitments"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_core",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_pcs_commitments_manual"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_core",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_pcs_config"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_core",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_pcs_decommitments"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_core",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_pcs_fri"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_core",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_pcs_queried"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_core",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_pcs_sampled"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_core",
+]
+
+[[package]]
+name = "atlantic_stwo_deserialize_stark_prefix"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_core",
+]
+
+[[package]]
+name = "atlantic_stwo_lookup"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_output"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_output_raw"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_pcs_mix"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_poseidon_smoke"
+version = "0.1.0"
+
+[[package]]
+name = "atlantic_stwo_pow"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_preprocessed"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_preprocessed_commit"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_program_encode_blake"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_program_first"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_program_hash_blake"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_program_hash_words_blake"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+ "stwo_verifier_utils",
+]
+
+[[package]]
+name = "atlantic_stwo_program_multi"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
+name = "atlantic_stwo_verify"
+version = "0.1.0"
+dependencies = [
+ "stwo_cairo_air",
+]
+
+[[package]]
 name = "bounded_int"
 version = "0.1.0"
 

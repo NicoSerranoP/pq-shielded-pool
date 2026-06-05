@@ -1,0 +1,16 @@
+[package]
+name = "atlantic_stwo_poseidon_smoke"
+version = "0.1.0"
+edition = "2024_07"
+
+[lib]
+sierra = true
+casm = false
+
+[[target.executable]]
+name = "atlantic_stwo_poseidon_smoke"
+function = "atlantic_stwo_poseidon_smoke::main"
+sierra = true
+
+[dependencies]
+cairo_execute = ">=2.18.0"

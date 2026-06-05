@@ -1,0 +1,20 @@
+[package]
+name = "atlantic_stwo_output_raw"
+version = "0.1.0"
+edition = "2024_07"
+
+[lib]
+sierra = true
+casm = false
+
+[[target.executable]]
+name = "atlantic_stwo_output_raw"
+function = "atlantic_stwo_output_raw::main"
+sierra = true
+
+[features]
+qm31_opcode = ["stwo_cairo_air/qm31_opcode"]
+
+[dependencies]
+stwo_cairo_air = { path = "../cairo_air" }
+cairo_execute = ">=2.18.0"

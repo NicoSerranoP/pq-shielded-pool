@@ -1,0 +1,21 @@
+[package]
+name = "atlantic_stwo_deserialize_pcs_sampled"
+version = "0.1.0"
+edition = "2024_07"
+
+[lib]
+sierra = true
+casm = false
+
+[[target.executable]]
+name = "atlantic_stwo_deserialize_pcs_sampled"
+function = "atlantic_stwo_deserialize_pcs_sampled::main"
+sierra = true
+
+[features]
+qm31_opcode = ["stwo_cairo_air/qm31_opcode", "stwo_verifier_core/qm31_opcode"]
+
+[dependencies]
+stwo_cairo_air = { path = "../cairo_air" }
+stwo_verifier_core = { path = "../verifier_core" }
+cairo_execute = ">=2.18.0"
