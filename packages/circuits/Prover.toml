@@ -1,4 +1,4 @@
-published_root = 0
+published_root = "0x01fc64bed90c55b193ec54e851cd13888d45293f2a2e4efdf83581f39df9c615"
 
 [merkle_proof]
 indices = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
@@ -8,12 +8,12 @@ siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 [[new_notes]]
 nonce = 0
 owner = 0
-value = 3
+value = 1
 
 [[new_notes]]
 nonce = 0
 owner = 0
-value = 1
+value = 3
 
 [old_note]
 nonce = 0

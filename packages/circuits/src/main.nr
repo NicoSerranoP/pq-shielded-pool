@@ -28,9 +28,7 @@ fn main(
         merkle_proof.siblings,
     );
 
-    println(computed_root);
-
-    // assert(computed_root == published_root, "Computed root does not match the published root");
+    assert(computed_root == published_root, "Computed root does not match the published root");
 
     let mut remaining_value: u32 = old_note.value;
 

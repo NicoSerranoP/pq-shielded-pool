@@ -35,3 +35,8 @@ provekit-cli prepare
 provekit-cli prove
 provekit-cli verify
 ```
+
+
+## Parameters in Prover.toml
+
+`published_root="0x01fc64bed90c55b193ec54e851cd13888d45293f2a2e4efdf83581f39df9c615"`
