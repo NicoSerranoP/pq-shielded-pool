@@ -49,9 +49,9 @@ cd circuits/<ACTION_CIRCUIT>
 
 provekit-cli prepare ../target/<ACTION_CIRCUIT>.json --backend groth16
 
-provekit-cli export-solidity --pkv <ACTION_CIRCUIT>.pkv --template ../ProvekitGroth16Verifier.sol --out ../Verifier.sol
+provekit-cli export-solidity --pkv <ACTION_CIRCUIT>.pkv --template ../ProvekitGroth16Verifier.sol --out Verifier.sol
 
 provekit-cli prove
 
-provekit-cli export-evm-proof --proof proof.np --out-dir ../evm
+provekit-cli export-evm-proof --proof proof.np --out-dir evm
 ```

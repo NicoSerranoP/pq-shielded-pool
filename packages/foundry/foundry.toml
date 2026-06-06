@@ -4,4 +4,4 @@ out = "out"
 libs = ["lib"]
 test = "contracts/test"
 remappings = ["forge-std/=lib/forge-std/src/", "circuits/=../circuits/"]
-fs_permissions = [{ access = "read", path = "../circuits/evm" }]
+fs_permissions = [{ access = "read", path = "../circuits" }]
