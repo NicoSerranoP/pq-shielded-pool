@@ -1,0 +1,33 @@
+# Transfer circuit
+
+Use this circuit to build the zk proof in the user device in order to transfer value spending a note and generating new notes. This transfer will be totally anonymous and confidential.
+
+## Run it
+To run the circuit, check the README in `packages/circuits/`
+
+## Prover.toml file
+```yaml
+new_notes_commitments = ["0x0e0bfaeb78319c73806a701cf1714c5a43f970cd0faed05d340b8f50b6517961", "0x0983bd8c0111805c560976a4be7d9fcb65770e2b82cb48813ebaf555527ef53c"]
+nullifier = "0x079f1b236618bfa7fcc0b96caa26db9f6b9f5203e116662d9aa61a92677f68d8"
+published_root = "0x0f670b9202f04e3fdd3c9ec53fa427a34ab5a4891be0d257dff327237e34c4d7"
+
+[merkle_proof]
+indices = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
+length = 0
+siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+[[new_notes]]
+nonce = 1
+owner = 1
+value = 1
+
+[[new_notes]]
+nonce = 2
+owner = 2
+value = 3
+
+[old_note]
+nonce = 0
+owner = "0x17aa07f6560b626ccd53cbfb2a0f5b4727b31fb8882ec591a22e7e893c067bd2"
+value = 5
+```
