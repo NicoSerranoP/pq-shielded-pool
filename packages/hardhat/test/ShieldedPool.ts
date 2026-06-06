@@ -10,7 +10,7 @@ describe("ShieldedPool", function () {
   const outputCommitments = [2222n, 3333n];
 
   async function deployFixture() {
-    const [deployer, depositor] = await ethers.getSigners();
+    const [deployer, depositor, recipient] = await ethers.getSigners();
 
     const tokenFactory = await ethers.getContractFactory("SE2Token");
     const token = await tokenFactory.deploy();
@@ -23,6 +23,10 @@ describe("ShieldedPool", function () {
     const transferVerifierFactory = await ethers.getContractFactory("MockTransferVerifier");
     const transferVerifier = await transferVerifierFactory.deploy();
     await transferVerifier.waitForDeployment();
+
+    const withdrawVerifierFactory = await ethers.getContractFactory("MockWithdrawVerifier");
+    const withdrawVerifier = await withdrawVerifierFactory.deploy();
+    await withdrawVerifier.waitForDeployment();
 
     const assetId = BigInt(await token.getAddress());
 
@@ -39,6 +43,7 @@ describe("ShieldedPool", function () {
       await token.getAddress(),
       await verifier.getAddress(),
       await transferVerifier.getAddress(),
+      await withdrawVerifier.getAddress(),
       assetId,
     );
     await pool.waitForDeployment();
@@ -46,7 +51,19 @@ describe("ShieldedPool", function () {
     await token.mint(depositor.address, amount);
     await token.connect(depositor).approve(await pool.getAddress(), amount);
 
-    return { assetId, commitment, depositor, deployer, pool, proof, token, transferVerifier, verifier };
+    return {
+      assetId,
+      commitment,
+      depositor,
+      deployer,
+      pool,
+      proof,
+      recipient,
+      token,
+      transferVerifier,
+      verifier,
+      withdrawVerifier,
+    };
   }
 
   async function depositAndGetRoot() {
@@ -182,6 +199,63 @@ describe("ShieldedPool", function () {
     await expect(pool.transfer(root, inputNullifier, [], proof)).to.be.revertedWithCustomError(
       pool,
       "NoOutputCommitments",
+    );
+  });
+
+  it("withdraws a spent private note to a public recipient", async function () {
+    const { pool, recipient, root, token } = await depositAndGetRoot();
+
+    await expect(pool.withdraw(root, inputNullifier, recipient.address, amount, proof)).to.emit(pool, "Withdrawal");
+
+    expect(await token.balanceOf(recipient.address)).to.equal(amount);
+    expect(await token.balanceOf(await pool.getAddress())).to.equal(0n);
+    expect(await pool.isNullifierSpent(inputNullifier)).to.equal(true);
+  });
+
+  it("rejects withdrawals against unknown roots", async function () {
+    const { pool, recipient } = await loadFixture(deployFixture);
+
+    await expect(pool.withdraw(999n, inputNullifier, recipient.address, amount, proof)).to.be.revertedWithCustomError(
+      pool,
+      "UnknownMerkleRoot",
+    );
+  });
+
+  it("rejects invalid withdrawal proofs", async function () {
+    const { pool, recipient, root, withdrawVerifier } = await depositAndGetRoot();
+
+    await withdrawVerifier.setShouldAccept(false);
+
+    await expect(pool.withdraw(root, inputNullifier, recipient.address, amount, proof)).to.be.revertedWithCustomError(
+      pool,
+      "InvalidWithdrawProof",
+    );
+  });
+
+  it("rejects double withdrawal spends", async function () {
+    const { pool, recipient, root } = await depositAndGetRoot();
+
+    await pool.withdraw(root, inputNullifier, recipient.address, amount, proof);
+
+    await expect(pool.withdraw(root, inputNullifier, recipient.address, amount, proof))
+      .to.be.revertedWithCustomError(pool, "NullifierAlreadySpent")
+      .withArgs(inputNullifier);
+  });
+
+  it("rejects invalid withdrawal public inputs", async function () {
+    const { pool, recipient, root } = await depositAndGetRoot();
+
+    await expect(pool.withdraw(root, 0, recipient.address, amount, proof)).to.be.revertedWithCustomError(
+      pool,
+      "InvalidNullifier",
+    );
+    await expect(pool.withdraw(root, inputNullifier, ethers.ZeroAddress, amount, proof)).to.be.revertedWithCustomError(
+      pool,
+      "InvalidRecipient",
+    );
+    await expect(pool.withdraw(root, inputNullifier, recipient.address, 0, proof)).to.be.revertedWithCustomError(
+      pool,
+      "InvalidAmount",
     );
   });
 });

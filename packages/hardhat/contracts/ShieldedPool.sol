@@ -32,6 +32,20 @@ interface ITransferVerifier {
     ) external view returns (bool);
 }
 
+/// @notice Verifier contract for private withdrawal proofs.
+/// @dev The generated zk verifier should prove that the input nullifier is
+/// derived from a private note commitment included in `root`, and that the
+/// note authorizes the public withdrawal amount and recipient.
+interface IWithdrawVerifier {
+    function verifyWithdrawProof(
+        uint256 root,
+        uint256 inputNullifier,
+        address recipient,
+        uint256 amount,
+        bytes calldata proof
+    ) external view returns (bool);
+}
+
 /// @notice Shielded pool using a Lean Incremental Merkle Tree.
 contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
     using InternalLeanIMT for LeanIMTData;
@@ -42,6 +56,7 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
     IERC20 public immutable token;
     IDepositVerifier public immutable depositVerifier;
     ITransferVerifier public immutable transferVerifier;
+    IWithdrawVerifier public immutable withdrawVerifier;
     uint256 public immutable assetId;
 
     LeanIMTData private _commitmentTree;
@@ -52,10 +67,13 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
     error InvalidToken();
     error InvalidDepositVerifier();
     error InvalidTransferVerifier();
+    error InvalidWithdrawVerifier();
     error InvalidAssetId();
     error InvalidAmount();
+    error InvalidRecipient();
     error InvalidDepositProof();
     error InvalidTransferProof();
+    error InvalidWithdrawProof();
     error UnknownMerkleRoot();
     error NoOutputCommitments();
     error InvalidNullifier();
@@ -81,10 +99,13 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
         uint256[] outputCommitments
     );
 
+    event Withdrawal(uint256 indexed root, uint256 indexed inputNullifier, address indexed recipient, uint256 amount);
+
     constructor(
         IERC20 token_,
         IDepositVerifier depositVerifier_,
         ITransferVerifier transferVerifier_,
+        IWithdrawVerifier withdrawVerifier_,
         uint256 assetId_
     ) {
         if (address(token_) == address(0)) {
@@ -99,6 +120,10 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
             revert InvalidTransferVerifier();
         }
 
+        if (address(withdrawVerifier_) == address(0)) {
+            revert InvalidWithdrawVerifier();
+        }
+
         if (assetId_ == 0) {
             revert InvalidAssetId();
         }
@@ -106,6 +131,7 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
         token = token_;
         depositVerifier = depositVerifier_;
         transferVerifier = transferVerifier_;
+        withdrawVerifier = withdrawVerifier_;
         assetId = assetId_;
     }
 
@@ -185,6 +211,45 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
         _rememberRoot(newRoot);
 
         emit Transfer(root, firstLeafIndex, newRoot, inputNullifier, outputCommitments);
+    }
+
+    /// @notice Spend a private input note and withdraw public ERC20 tokens.
+    /// @param root An accepted Merkle root containing the private input commitment.
+    /// @param inputNullifier Nullifier for the note consumed by this withdrawal.
+    /// @param recipient Public recipient that receives withdrawn tokens.
+    /// @param amount Public ERC20 amount withdrawn from the pool.
+    /// @param zkProof A proof of inclusion, nullifier correctness, and withdrawal authorization.
+    function withdraw(
+        uint256 root,
+        uint256 inputNullifier,
+        address recipient,
+        uint256 amount,
+        bytes calldata zkProof
+    ) external nonReentrant {
+        if (!_knownRoots[root]) {
+            revert UnknownMerkleRoot();
+        }
+
+        if (inputNullifier == 0) {
+            revert InvalidNullifier();
+        }
+
+        if (recipient == address(0)) {
+            revert InvalidRecipient();
+        }
+
+        if (amount == 0) {
+            revert InvalidAmount();
+        }
+
+        if (!withdrawVerifier.verifyWithdrawProof(root, inputNullifier, recipient, amount, zkProof)) {
+            revert InvalidWithdrawProof();
+        }
+
+        _spendNullifier(inputNullifier);
+        token.safeTransfer(recipient, amount);
+
+        emit Withdrawal(root, inputNullifier, recipient, amount);
     }
 
     function currentRoot() external view returns (uint256) {
