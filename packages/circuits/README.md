@@ -45,9 +45,11 @@ provekit-cli verify
 ```bash
 cd circuits
 
-provekit-cli prepare target/deposit.json --backend groth16
+provekit-cli prepare ../target/deposit.json --backend groth16
 
-provekit-cli export-solidity --pkv deposit.pkv --template ProvekitGroth16Verifier.sol --out Verifier.sol
+provekit-cli export-solidity --pkv deposit.pkv --template ../ProvekitGroth16Verifier.sol --out Verifier.sol
+
+provekit-cli prove
 
 provekit-cli export-evm-proof --proof proof.np --out-dir evm
 ```
