@@ -13,17 +13,17 @@ pub fn main(
     new_notes_commitments: pub [Field; MAX_NEW_NOTES],
     published_root: pub Field,
 ) {
-    let old_commitment = poseidon2_permutation(
-        [NOTE_COMMITMENT_DOMAIN, old_note.value as Field, old_note.owner, old_note.nonce],
-        4,
-    )[0];
-
     let computed_nullifier = poseidon2_permutation(
         [NULLIFIER_DOMAIN, old_note.value as Field, old_note.owner, old_note.nonce],
         4,
     )[0];
 
     assert(computed_nullifier == nullifier, "Nullifiers mismatch");
+
+    let old_commitment = poseidon2_permutation(
+        [NOTE_COMMITMENT_DOMAIN, old_note.value as Field, old_note.owner, old_note.nonce],
+        4,
+    )[0];
 
     let computed_root = binary_merkle_root(
         poseidon2,
