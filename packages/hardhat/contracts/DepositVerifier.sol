@@ -91,7 +91,7 @@ contract ProvekitGroth16Verifier {
     /// Number of EXPLICIT public inputs the circuit takes (not counting
     /// the ONE_WIRE or BSB22 derived challenges).
     /// CODEGEN: substitute from VerifyingKey.
-    uint256 internal constant N_PUB = 1; //TODO: is this correct?
+    uint256 internal constant N_PUB = 1;
 
     /// Number of BSB22 Pedersen commitments in the proof.
     /// CODEGEN: substitute from VerifyingKey. v1 template assumes 1.
@@ -114,7 +114,7 @@ contract ProvekitGroth16Verifier {
     /// `input[]`; the indices used live in `_deriveCommitmentChallenge` and
     /// must be regenerated together with this constant.
     /// Default template assumes ALL N_PUB inputs are committed.
-    uint256 internal constant N_COMMITTED = 1; // CODEGEN: must equal N_PUB if all inputs are committed
+    uint256 internal constant N_COMMITTED = 1;
 
     // ------------------------------------------------------------------
     // BSB22 domain separation tags (from `provekit_groth16::lib.rs`).
@@ -144,50 +144,50 @@ contract ProvekitGroth16Verifier {
     // ------------------------------------------------------------------
 
     // Groth16 alpha (G1, positive).
-    uint256 internal constant ALPHA_X = 0; // CODEGEN
-    uint256 internal constant ALPHA_Y = 0; // CODEGEN
+    uint256 internal constant ALPHA_X = 0x2fe13a1757c63d058053fd96e2c1f406b25e1644b75d2ab81b7016bab7f41014;
+    uint256 internal constant ALPHA_Y = 0x000f2c71d8ef6fc6fbf668c5ff3c432df025086b25cdd4e90ee64c5e30104f6d;
 
     // Groth16 beta (G2, NEGATED so we can write e(α, -β) directly).
-    uint256 internal constant BETA_NEG_X_0 = 0; // CODEGEN
-    uint256 internal constant BETA_NEG_X_1 = 0; // CODEGEN
-    uint256 internal constant BETA_NEG_Y_0 = 0; // CODEGEN
-    uint256 internal constant BETA_NEG_Y_1 = 0; // CODEGEN
+    uint256 internal constant BETA_NEG_X_0 = 0x18f66ca5c42da23b1110ae074b811146db831d82734a592fb03efab62270abb9;
+    uint256 internal constant BETA_NEG_X_1 = 0x0e8c497ebc58efa4a8856e0d5532214bea6cce4f2437ee8756ffc985f04105d1;
+    uint256 internal constant BETA_NEG_Y_0 = 0x28e45a261c26a827e557ee508f68346baa08b427b4257ef3851b15e609661ea3;
+    uint256 internal constant BETA_NEG_Y_1 = 0x086a851ea6b22f742e82303f74e91a08fb2b821e3705e2ebcf8fa432dab1df40;
 
     // Groth16 gamma (G2, NEGATED).
-    uint256 internal constant GAMMA_NEG_X_0 = 0; // CODEGEN
-    uint256 internal constant GAMMA_NEG_X_1 = 0; // CODEGEN
-    uint256 internal constant GAMMA_NEG_Y_0 = 0; // CODEGEN
-    uint256 internal constant GAMMA_NEG_Y_1 = 0; // CODEGEN
+    uint256 internal constant GAMMA_NEG_X_0 = 0x068bf9f2adaa6194b8bc9f384ce347fe4e0a5cb91a4ae428e2085524e25da86f;
+    uint256 internal constant GAMMA_NEG_X_1 = 0x270345ab44942aa5ca54dc66e12cc0195dbce49fb2db545c8a905af67c1fcb37;
+    uint256 internal constant GAMMA_NEG_Y_0 = 0x01b9b7496fc12967af887890f23ba9c00144466abb3ad2058855748825928e48;
+    uint256 internal constant GAMMA_NEG_Y_1 = 0x10b78517dbceb59904c5e0df26a19cebb25ad5b75153d2866fb4bdc278ad2311;
 
     // Groth16 delta (G2, NEGATED).
-    uint256 internal constant DELTA_NEG_X_0 = 0; // CODEGEN
-    uint256 internal constant DELTA_NEG_X_1 = 0; // CODEGEN
-    uint256 internal constant DELTA_NEG_Y_0 = 0; // CODEGEN
-    uint256 internal constant DELTA_NEG_Y_1 = 0; // CODEGEN
+    uint256 internal constant DELTA_NEG_X_0 = 0x181ed39a1b93f73e8dd5e04801512ae13c9e3154262d5608ac084ae92364597b;
+    uint256 internal constant DELTA_NEG_X_1 = 0x079762f525c739a1e7665aa3aad0452e1eabbd6d832e68a6d4afda842edbffe2;
+    uint256 internal constant DELTA_NEG_Y_0 = 0x0f89d5b7bd1c34e7e57388a95ab2ae855fc758420648bff1a43d53127a1f20c0;
+    uint256 internal constant DELTA_NEG_Y_1 = 0x24f54ced8d6a1c4c28dd0abea361abee35262439320a5d7b722af0df86a9c54d;
 
     // K[0] (constant term of the public-input MSM).
-    uint256 internal constant K0_X = 0; // CODEGEN
-    uint256 internal constant K0_Y = 0; // CODEGEN
+    uint256 internal constant K0_X = 0x20750020ba8af9f8504564b061f1d5310a35cdb866fdb74e6c5fb1547b51ee6b;
+    uint256 internal constant K0_Y = 0x14ff3e93695a2c7ea3730e0ee09afc34a027d402c346030e088b7183cad739f2;
 
     // K[1..1+N_PUB_EXTENDED] — one G1 point per extended public input.
     // CODEGEN: emit N_PUB_EXTENDED entries (PUB_0_X, PUB_0_Y, ..., PUB_{N-1}_*).
     //<BEGIN_CODEGEN:PUB_BASES>
-    uint256 internal constant PUB_0_X = 0; // CODEGEN: K[1]
-    uint256 internal constant PUB_0_Y = 0; // CODEGEN: K[1]
-    uint256 internal constant PUB_1_X = 0; // CODEGEN: K[2]
-    uint256 internal constant PUB_1_Y = 0; // CODEGEN: K[2]
+    uint256 internal constant PUB_0_X = 0x24d28f8e58e7e3780de93488e4d54f0cde78054b7052541cd2e64c7ace201c16; // K[1] — public input #0
+    uint256 internal constant PUB_0_Y = 0x231c1450de71d0fd393c04c9dc5426dd14bc5962261573ce395fdd7c0c6e4f74; // K[1] — public input #0
+    uint256 internal constant PUB_1_X = 0x1263b505a3ce678e62fa64235dbc1698d8b40940496b0b46f83cf0879b2d2c9e; // K[2] — challenge #0
+    uint256 internal constant PUB_1_Y = 0x00b3cd13e15762b65b30110b67237270195cd9d8c2efd51d59c8fee37a3eab6d; // K[2] — challenge #0
     //<END_CODEGEN:PUB_BASES>
 
     // Pedersen verifying key (single-commitment template).
     // G is in G2; GSigmaNeg = -σ·G also in G2.
-    uint256 internal constant PEDERSEN_G_X_0          = 0; // CODEGEN
-    uint256 internal constant PEDERSEN_G_X_1          = 0; // CODEGEN
-    uint256 internal constant PEDERSEN_G_Y_0          = 0; // CODEGEN
-    uint256 internal constant PEDERSEN_G_Y_1          = 0; // CODEGEN
-    uint256 internal constant PEDERSEN_GSIGMA_NEG_X_0 = 0; // CODEGEN
-    uint256 internal constant PEDERSEN_GSIGMA_NEG_X_1 = 0; // CODEGEN
-    uint256 internal constant PEDERSEN_GSIGMA_NEG_Y_0 = 0; // CODEGEN
-    uint256 internal constant PEDERSEN_GSIGMA_NEG_Y_1 = 0; // CODEGEN
+    uint256 internal constant PEDERSEN_G_X_0          = 0x29a132b694f05772950596bd49109b3eae190cee8ca3e391f438f809d70d0131;
+    uint256 internal constant PEDERSEN_G_X_1          = 0x1009ad3e9f3f8666582262c62100386d610865032590b8953b35f23567264d47;
+    uint256 internal constant PEDERSEN_G_Y_0          = 0x2d684a74e3aca2506b8f2dcda8a3323b1af82239e89a48c997560ee3573e6517;
+    uint256 internal constant PEDERSEN_G_Y_1          = 0x07294423da7af4e03dc0b7a9f460923367980334ab2ec8d2aa68a77e6efe8c39;
+    uint256 internal constant PEDERSEN_GSIGMA_NEG_X_0 = 0x06bd8bf2b4bf343d8609f4493bf4d1497eb7d6eab28b5d171cfa2617dde031a4;
+    uint256 internal constant PEDERSEN_GSIGMA_NEG_X_1 = 0x207b3b540d398438ce1a8e5b506a8aab0cd44c823d03a643dcae64b95ad4f09f;
+    uint256 internal constant PEDERSEN_GSIGMA_NEG_Y_0 = 0x1b8fb3234cb125d2760919eee3a0e0ccd5f1ee195b700e87a597584dac8c46f5;
+    uint256 internal constant PEDERSEN_GSIGMA_NEG_Y_1 = 0x0f4a4fef3749e1de7f6e22da5f36b8f134c15792449f44bf3993b0846c583b79;
 
     // ------------------------------------------------------------------
     // Errors.
@@ -464,13 +464,20 @@ contract ProvekitGroth16Verifier {
         // Default placeholder below assumes committed = [input[0]]; the
         // codegen tool overwrites this block whole.
         //<BEGIN_CODEGEN:COMMITTED_INDICES>
-        _writeReversedAt(msgBuf, 64 + 32 * 0, input[0]); // CODEGEN: committed[0] = input[0]
+        _writeReversedAt(msgBuf, 64 + 32 * 0, input[0]); // committed[0] = input[0]
         //<END_CODEGEN:COMMITTED_INDICES>
 
-        // The Rust prover and verifier always use `hash_to_fr_multi`
-        // unconditionally for every N — including N=1. The counter-chain
-        // produces a different value than a bare `hash_to_fr` call, so we
-        // must mirror that here for all values of N_CHALLENGE.
+        // Match the Rust verifier: when num_challenges <= 1, the prover and
+        // off-chain verifier use `derive_commitment_challenge` (a single
+        // keccak round via `hash_to_fr`); otherwise they use the counter
+        // chain `hash_to_fr_multi`. The on-chain split below mirrors that.
+        // N_CHALLENGE is a compile-time constant, so the dead branch is
+        // pruned.
+        uint256[N_CHALLENGE] memory out;
+        if (N_CHALLENGE == 1) {
+            out[0] = _hashToFr(msgBuf, DST_COMMITMENT);
+            return out;
+        }
         return _hashToFrMulti(msgBuf, DST_COMMITMENT);
     }
 

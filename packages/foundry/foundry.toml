@@ -1,0 +1,11 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+cache_path = "cache"
+remappings = [
+    "@contracts/=../hardhat/contracts/",
+    "@circuits/=../circuits/"
+]
+fs_permissions = [{ access = "read", path = "../circuits/evm" }]
