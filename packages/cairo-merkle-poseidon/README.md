@@ -141,8 +141,11 @@ Verified: Trace 1
 Verified: Trace 2
 Verified: FRI statement: 0..7
 Verified: register continuous page: 0
-Verified: Main proof
+Verified: Main proof gasUsed=2677410
+Total verifier gas used: 6568859
 ```
+
+Gas breakdown from the fork receipts: trace statements `384,250`, `397,120`, `383,950`; FRI statements `450,530`, `417,170`, `384,200`, `350,840`, `318,020`, `284,450`, `251,450`, `218,570`; continuous page registration `50,899`; main proof `2,677,410`. The total was `6,568,859` gas across 13 transactions.
 
 This is a local mainnet-fork verifier test, not a Sepolia transaction. It exercises the deployed mainnet GPS verifier bytecode through Hardhat fork state, with proof generation kept local and only proof/public verification data submitted to the fork.
 
@@ -168,3 +171,5 @@ SEPOLIA_GPS_FRI_CONTRACT=...
 ```
 
 Current status on 2026-06-06: the configured Sepolia RPC has bytecode at the documented SHARP verifier `0x07ec0D28e50322Eb0C159B9090ecF3aeA8346DFe`, but no bytecode at the mainnet-fork adapter helper addresses. The direct split-proof path therefore needs either published Sepolia GPS helper addresses or a Sepolia deployment of the helper verifier set. The Atlantic/Satellite path has already verified this public fixture on Sepolia, but that route uses remote proving and is not the local-private-prover target.
+
+The throwaway Sepolia gas address generated for this path is `0x6b6Ea75fCEE3c55DD881cFF70CF80C5375eB3395`; its private key is stored only in the ignored local `packages/hardhat/.env`. When checked, it had `0` Sepolia ETH. The documented Sepolia SHARP verifier and Starknet Core contracts both have bytecode, but neither exposes the adapter entrypoints `verifyProofAndRegister`, `registerContinuousMemoryPage`, `verifyMerkle`, or `verifyFRI`, so they are not enough by themselves for direct local Stone proof submission.

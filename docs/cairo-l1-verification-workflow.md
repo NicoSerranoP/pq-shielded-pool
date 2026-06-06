@@ -64,6 +64,8 @@ Successful local mainnet-fork verifier result on 2026-06-06:
 - local verifier result: `Proof verified successfully`
 - adapter split proof summary: `main_proof_words=540`, `trace_merkle_statements=3`, `fri_merkle_statements=8`, `continuous_memory_pages=1`
 - fork verifier result: trace statements `0..2` verified, FRI statements `0..7` verified, continuous page `0` registered, and `Verified: Main proof`
+- measured fork verifier gas on 2026-06-06: total `6,568,859` gas across 13 transactions
+- gas breakdown: trace statements `384,250`, `397,120`, `383,950`; FRI statements `450,530`, `417,170`, `384,200`, `350,840`, `318,020`, `284,450`, `251,450`, `218,570`; continuous page `50,899`; main proof `2,677,410`
 
 This is stronger than the Atlantic remote-proving flow for privacy because proof generation stays local. It is still a local fork test, not a Sepolia transaction, and it does not by itself prove that the proof artifact is zero-knowledge for private transfers.
 
@@ -78,10 +80,13 @@ The wrapper requires a funded testnet key and Sepolia addresses for the GPS main
 
 - Ethereum Sepolia chain id: `0xaa36a7`
 - documented Sepolia SHARP verifier `0x07ec0D28e50322Eb0C159B9090ecF3aeA8346DFe`: code present
+- documented Sepolia Starknet Core contract `0xE2Bb56ee936fd6433DC0F6e7e3b8365C906AA057`: code present
+- throwaway gas address generated in ignored local env: `0x6b6Ea75fCEE3c55DD881cFF70CF80C5375eB3395`; current balance was `0` Sepolia ETH when checked
+- the documented SHARP verifier and Starknet Core contracts do not expose the adapter selectors `verifyProofAndRegister`, `registerContinuousMemoryPage`, `verifyMerkle`, or `verifyFRI`
 - local-fork adapter default helper addresses: no code on Sepolia
 - StarkEx mainnet SHARP helper addresses: no code on Sepolia
 
-So direct local-proof-to-Sepolia verification is not yet complete. We need either the Sepolia helper addresses that match the adapter flow, or we need to deploy a test GPS verifier/helper set to Sepolia using a funded testnet key.
+So direct local-proof-to-Sepolia verification is not yet complete. We need faucet funds for the throwaway address plus either the Sepolia helper addresses that match the adapter flow, or a Sepolia deployment of the helper verifier set. The two public Sepolia landmark contracts are not sufficient by themselves for the split-proof adapter path.
 
 Local machine prerequisites checked on 2026-06-06:
 

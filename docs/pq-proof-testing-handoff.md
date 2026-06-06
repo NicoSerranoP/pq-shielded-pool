@@ -184,9 +184,12 @@ Direct local Stone to deployed GPS verifier on local mainnet fork:
 - Local prover time: `56.126 sec`.
 - Split proof summary: `main_proof_words=540`, `trace_merkle_statements=3`, `fri_merkle_statements=8`, `continuous_memory_pages=1`.
 - Fork verifier result: trace statements `0..2`, FRI statements `0..7`, continuous page `0`, and `Main proof` all verified.
+- Measured fork verifier gas on 2026-06-06: total `6,568,859` gas across 13 transactions. Breakdown: trace `384,250`, `397,120`, `383,950`; FRI `450,530`, `417,170`, `384,200`, `350,840`, `318,020`, `284,450`, `251,450`, `218,570`; continuous page `50,899`; main proof `2,677,410`.
 - This path sends only proof/public verification calldata to the fork; proof generation stays local.
 - Direct Sepolia wrapper added: `corepack yarn cairo:merkle-poseidon:prove-stone-legacy-gps:sepolia-preflight` and `corepack yarn cairo:merkle-poseidon:prove-stone-legacy-gps:sepolia`.
-- Current Sepolia blocker: `SEPOLIA_RPC_URL` and Atlantic API key are configured, but no funded `STONE_SEPOLIA_PRIVATE_KEY` is present and no Sepolia GPS helper addresses are configured. The documented Sepolia SHARP verifier has bytecode, but the mainnet-fork helper addresses do not.
+- Current Sepolia blocker: `SEPOLIA_RPC_URL`, Atlantic API key, and a throwaway `STONE_SEPOLIA_PRIVATE_KEY` are configured, but the throwaway address `0x6b6Ea75fCEE3c55DD881cFF70CF80C5375eB3395` still needs Sepolia ETH and no Sepolia GPS helper addresses are configured.
+- Documented Sepolia landmarks have bytecode: SHARP verifier `0x07ec0D28e50322Eb0C159B9090ecF3aeA8346DFe` and Starknet Core `0xE2Bb56ee936fd6433DC0F6e7e3b8365C906AA057`.
+- Selector check: those two landmark contracts do not contain `verifyProofAndRegister`, `registerContinuousMemoryPage`, `verifyMerkle`, or `verifyFRI`, so they cannot be used directly as the split-proof adapter's GPS/Merkle/FRI/memory helper contracts.
 
 Artifact-shape result:
 
