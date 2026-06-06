@@ -31,12 +31,23 @@ source ~/.bashrc
 provekit-cli --help
 ```
 
-## Prepare, prove and verify the circuits
-
+## Prepare, prove and verify the circuits (only Provekit)
 ```bash
 cd circuits
 
 provekit-cli prepare
 provekit-cli prove
 provekit-cli verify
+```
+
+
+## Prepare, prove and verify the circuits (Provekit wrapped in Groth16)
+```bash
+cd circuits
+
+provekit-cli prepare target/deposit.json --backend groth16
+
+provekit-cli export-solidity --pkv deposit.pkv --template ProvekitGroth16Verifier.sol --out Verifier.sol
+
+provekit-cli export-evm-proof --proof proof.np --out-dir evm
 ```
