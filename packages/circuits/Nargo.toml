@@ -1,6 +1,3 @@
-[package]
-name = "circuits"
-type = "bin"
-authors = [""]
-
-[dependencies]
+[workspace]
+members = ["shared", "deposit", "transfer"]
+default-member = "deposit"
