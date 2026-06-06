@@ -8,7 +8,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 # Install noirup
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
 # Install specific noir version compatible with Provekit
-noirup --version v1.0.0-beta.11
+noirup --version v1.0.0-beta.19
 # Clone the repository
 git clone https://github.com/worldfnd/provekit
 
