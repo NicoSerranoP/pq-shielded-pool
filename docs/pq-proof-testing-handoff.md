@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-06
 
-This document is the working handoff for people and agents building the proof path for post-quantum private transfers in this repository. It records what has been verified locally, what has been verified through Atlantic/Sepolia fact registration, and what is still pending before we can honestly claim end-to-end L1 verification of locally generated private-transfer proofs.
+This document is the working handoff for people and agents building the proof path for post-quantum private transfers in this repository. It records what has been verified locally, what has been verified through Atlantic/Sepolia fact registration, and what remains before we can honestly claim production-private transfer proofs.
 
 ## Current Position
 
@@ -17,13 +17,14 @@ What we can say now:
 - Local Cairo recursive verification of the generated Stwo proof works through `stwo_cairo_verifier_array`.
 - The full recursive verifier task PIE completes Atlantic trace generation on an `L` worker.
 - The recursive verifier fact is registered on mocked Sepolia and the Satellite registry returns `valid: true`.
+- The same public recursive-verifier task PIE is verified through real non-mocked Sepolia L1 fact registration, and the Satellite registry returns `valid: true` with `isMocked: false`.
 
 What we cannot say yet:
 
-- A real proof-backed Sepolia query is currently in `PROOF_GENERATION_AND_VERIFICATION`; do not claim real L1 completion until its final Satellite readback is recorded.
 - We should not describe the current proof artifact as production-private. Stwo Cairo is not zero-knowledge by default, so proof/public-memory leakage still needs a privacy audit or a hiding/recursive architecture.
+- We should not describe the toy Merkle statement as production cryptography. The application hash is still a toy fixture.
 
-A careful external statement is: local STARK proving and local recursive verification work; the full public recursive-verifier execution also passes Atlantic trace generation and mocked Sepolia fact registration. Real proof-backed Sepolia registration remains pending until the active query finishes.
+A careful external statement is: local STARK proving, local recursive verification, Atlantic trace generation, and real Sepolia L1 fact registration all work for the public toy Merkle recursive-verifier fixture. Production-private transfers still require a proof-leakage review and a production hash/public-output statement.
 
 ## Privacy Rules
 
@@ -69,6 +70,26 @@ source /home/yavor/.bashrc
 corepack yarn cairo:merkle:verify-recursive-local
 ```
 
+Build and validate the reproducible public recursive-verifier task PIE used for Atlantic/Sepolia:
+
+```sh
+source /home/yavor/.bashrc
+corepack yarn cairo:merkle:build-recursive-task-pie
+corepack yarn cairo:merkle:check-recursive-task-pie
+```
+
+The build script writes the stable ignored artifact:
+
+```text
+packages/cairo-merkle/target/local-proofs/recursive-verifier-task-pie.zip
+```
+
+If the task PIE already exists but the build log is unavailable, validate the archive-only invariants with:
+
+```sh
+node packages/cairo-merkle/scripts/check-recursive-task-pie.mjs --no-log-check
+```
+
 Expected verifier output with the current fixture:
 
 ```text
@@ -108,10 +129,22 @@ Mocked Sepolia recursive-verifier fact registration:
 
 Real proof-backed Sepolia registration:
 
+- Status: passes.
 - Query: `01KTDCSWGYZAGANJZYY4E3MDGF`.
-- Current step at this update: `PROOF_GENERATION_AND_VERIFICATION`.
+- Completed at: `2026-06-06T04:03:16.648Z`.
 - Proof job/transaction id: `01KTDCWKTKZWTPP135JDHPZGHK`.
-- Treat this as pending until the query is `DONE` and Satellite returns `valid: true` with `isMocked: false`.
+- Result: `PROOF_VERIFICATION_ON_L1`, `chain=L1`, `isFactMocked=false`, `isProofMocked=false`.
+- Sepolia Satellite: `0x396bF739f7b37D81f6CdD4571fDEF298150db88f`.
+- Readback: `valid: true`, `isMocked: false`.
+- Metadata program hash: `0x0288ba12915c0c7e91df572cf3ed0c9f391aa673cb247c5a208beaa50b668f09`.
+- Output hash: `0xb5f4a995135dac40e3888d5e086392559ba5b7bbc7fabb65dc5bf3a5ebc37faf`.
+- SHARP fact: `0x8a9e6885e08b0f85b16114cd889b05219485649a1988a73e377911bd2eac5e6f`.
+
+Re-read this completed query without uploading anything:
+
+```sh
+corepack yarn atlantic:merkle:task-pie:resume-real
+```
 
 Worker-size behavior for the 16,965,079-step task PIE:
 
@@ -128,7 +161,7 @@ Artifact-shape result:
 
 ## Atlantic Credits Interpretation
 
-The observed failures were not credit/quota failures. Atlantic accepted them and returned concrete artifact-shape, Cairo VM, or `OOMKilled` errors. The current real query was also accepted and remains in `PROOF_GENERATION_AND_VERIFICATION`; no quota or payment error has been reported.
+The observed failures were not credit/quota failures. Atlantic accepted them and returned concrete artifact-shape, Cairo VM, or `OOMKilled` errors. The real proof-backed query was accepted and completed successfully; no quota or payment error was reported.
 
 Herodotus documentation says `declaredJobSize` affects the trace-generation machine and query cost. Repeated diagnostics and real proof generation can consume credits even on testnet. Diagnose a credit problem only from an explicit quota, balance, payment, or submission rejection; do not infer one from a VM error, worker OOM, or a long-running healthy proof job.
 
@@ -150,11 +183,27 @@ For the next private-transfer program, use the Cairo Merkle fixture as a scaffol
 7. Only after the proof/public-output leakage model is audited, submit public recursive-verifier artifacts to Atlantic or another L1 route.
 8. Do not submit raw private transfer witnesses to Atlantic.
 
+## Poseidon Merkle Fixture Status
+
+The repository now includes a stronger public Merkle fixture in `packages/cairo-merkle-poseidon`. It uses Cairo core Poseidon via `core::poseidon::poseidon_hash_span` and domain-separates leaf and node hashes as `[domain, left, right]`.
+
+Verified locally on 2026-06-06:
+
+- Cairo build/test/execute pass for the fixture root `-845960492790892884656231863041640742943145074470692494761681786972233302565`.
+- Local Stwo proof generation and Rust verification pass.
+- Blake-canonical Cairo-serde proof generation produces `254292` proof felts.
+- Local Cairo recursive verification passes and outputs verifier hash, output length `1`, and the Poseidon root.
+- The recursive verifier task PIE validates locally with SHA-256 `17acdc817c1a86310238951fab2840130b835edc0fd3570d52fe2bb94781a890` and `19,455,300` Cairo VM steps.
+- Atlantic trace generation passes: query `01KTDRW5T557A0A4908T1V9QKC`, SHARP fact `0x55255c62a6562c275658d89e4822731edc7f6df44ca71a1b0049b1079cacef45`.
+
+Current L1 status:
+
+- Real Sepolia L1 query `01KTDS0C9WCMN1FWJFTYDQ27EZ` with `declaredJobSize=M` failed with `OOMKilled`; use `L` for this Poseidon recursive verifier.
+- Real Sepolia L1 query `01KTDS2CJV6BTG555N0PSD2K9H` with `declaredJobSize=L` passed. It completed at `2026-06-06T07:08:51.187Z`, proof job/transaction id `01KTDS5NGMSS4W4TMKGRXAFKQ7`, SHARP fact `0x55255c62a6562c275658d89e4822731edc7f6df44ca71a1b0049b1079cacef45`, and Sepolia Satellite readback `valid: true` with `isMocked: false`. Resume/read it without upload using `corepack yarn atlantic:merkle-poseidon:task-pie:resume-real`.
 ## Recommended Next Steps
 
-1. Record the terminal result and non-mocked Satellite readback for real query `01KTDCSWGYZAGANJZYY4E3MDGF`.
-2. Turn the tested Scarb patch into a maintained wrapper or upstream contribution instead of depending on a manually patched `/tmp` clone.
-3. Add a repository command that builds the task PIE and checks its SHA-256, builtin list, return segments, output length, verifier hash, and Merkle root before upload.
-4. Keep all transfer witness proving local. Submit only audited public recursive-verifier artifacts.
-5. Replace the toy transfer hash with the selected production hash and repeat local proof, local recursive verification, task-PIE trace generation, and L1 registration.
-6. Complete a proof/public-memory leakage review before using real private-transfer proof artifacts.
+1. Turn the tested Scarb patch into a maintained wrapper or upstream contribution instead of depending on a manually patched `/tmp` clone.
+2. Keep all transfer witness proving local. Submit only audited public recursive-verifier artifacts.
+3. Replace the toy transfer hash with the selected production hash and repeat local proof, local recursive verification, task-PIE validation, Atlantic trace generation, and L1 registration.
+4. Complete a proof/public-memory leakage review before using real private-transfer proof artifacts.
+5. For larger programs, start with `corepack yarn cairo:merkle:build-recursive-task-pie` and `corepack yarn cairo:merkle:check-recursive-task-pie`, then run a trace-only Atlantic query before spending credits on real L1 verification.

@@ -11,6 +11,8 @@ const MAINNET_SATELLITE = "0x2e6f182b06f37cbdc966ff5471c7d98cec2bfe70";
 const FIXTURE_ROOT = 823984307n;
 const PUBLIC_FIXTURE_INPUT_SHA256 = "fce19792661e27ff71979ba50104f6a0160b816abf609f5f1b6af6bcd3093d15";
 const PUBLIC_FIXTURE_PROGRAM_SHA256 = "5e5a82ab6faedd7bc9c7d03e076170e52c6e7609ade5d5dcbd01c850bdc73b40";
+const PUBLIC_RECURSIVE_TASK_PIE_SHA256 = "74ee9e6665e18e25dd871f728b74e3ba98f46742fd053293d3903022bad2ee37";
+const PUBLIC_POSEIDON_RECURSIVE_TASK_PIE_SHA256 = "17acdc817c1a86310238951fab2840130b835edc0fd3570d52fe2bb94781a890";
 const TERMINAL_STATUSES = new Set(["DONE", "FAILED"]);
 
 const __filename = fileURLToPath(import.meta.url);
@@ -156,7 +158,8 @@ Environment:
 
 Privacy:
   This command is remote proving. It uploads programFile and inputFile to Atlantic.
-  By default it only allows the known public toy fixture. Use local proving for private transfers.
+  By default it only allows the known public toy fixture and known public recursive task PIE.
+  Use local proving for private transfers.
 `);
 }
 
@@ -177,6 +180,15 @@ function sha256File(filePath) {
 function verifyRemoteUploadIsFixtureOnly(options) {
   if (options.pieFile) {
     const pieHash = sha256File(options.pieFile);
+
+    if (pieHash === PUBLIC_RECURSIVE_TASK_PIE_SHA256 || pieHash === PUBLIC_POSEIDON_RECURSIVE_TASK_PIE_SHA256) {
+      const artifact =
+        pieHash === PUBLIC_POSEIDON_RECURSIVE_TASK_PIE_SHA256
+          ? "poseidon-recursive-task-pie"
+          : "recursive-task-pie";
+      console.warn(`Atlantic remote upload guard: submitting the known public ${artifact} only.`);
+      return { pieHash, isKnownPublicFixture: true, artifact };
+    }
 
     if (options.allowRemoteWitnessUpload || process.env.ATLANTIC_ALLOW_REMOTE_WITNESS_UPLOAD === "true") {
       console.warn(

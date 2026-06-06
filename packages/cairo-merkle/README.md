@@ -66,7 +66,7 @@ source /home/yavor/.bashrc
 corepack yarn cairo:merkle:verify-recursive-local
 ```
 
-The current local recursive verifier returns root `823984307` and uses about 17.58M Cairo steps. Atlantic/Sepolia fact registration works for the plain public Merkle fixture, but Atlantic currently fails to run the generated stwo Cairo recursive verifier artifact during trace generation. See `docs/pq-proof-testing-handoff.md` for the current query ids and debugging status.
+The current local recursive verifier returns root `823984307`. The public recursive-verifier task PIE also passes Atlantic trace generation and real non-mocked Sepolia L1 fact registration. See `docs/pq-proof-testing-handoff.md` for the current query ids and debugging status.
 
 The local stwo-cairo checkout includes a small fix for Scarb executables: executable programs must use their actual entrypoint builtin list instead of the bootloader/all-builtin public segment context. Without this, simple executables can produce malformed public segment ranges and Merkle proving can fail the prover constraint sanity check.
 
@@ -99,4 +99,13 @@ curl --request POST \
   --form inputFile=@inputs/merkle_path.txt
 ```
 
-Real Sepolia L1 verification changes only `mockFactHash=false`.
+Real Sepolia L1 verification changes only `mockFactHash=false` for the plain fixture. For the recursive-verifier task PIE route used by the current L1 proof workflow, use:
+
+```sh
+source /home/yavor/.bashrc
+corepack yarn cairo:merkle:build-recursive-task-pie
+corepack yarn cairo:merkle:check-recursive-task-pie
+corepack yarn atlantic:merkle:task-pie:resume-real
+```
+
+The completed public recursive-verifier query is `01KTDCSWGYZAGANJZYY4E3MDGF`; it returned Sepolia Satellite `valid: true` with `isMocked: false`.

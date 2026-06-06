@@ -26,7 +26,7 @@ Atlantic/L1 status:
 
 - Correctly shaped Cairo task PIE trace generation works for the full recursive verifier.
 - Mocked Sepolia L1 fact registration works and the Satellite registry returns `valid: true`.
-- The real proof-backed Sepolia job is recorded below; check its final status before making production claims.
+- Real non-mocked Sepolia L1 fact registration works for the public recursive-verifier task PIE and the Satellite registry returns `valid: true` with `isMocked: false`.
 - Atlantic must use a sufficiently large worker for the 16.9-million-step verifier execution.
 
 ## Bug: `multi_pop_front<N>` Can Break Atlantic Cairo1 Rust VM
@@ -252,12 +252,7 @@ Atlantic may print a fact hash without a leading zero nibble. Do not prepend zer
 const fact = ethers.toBeHex(BigInt(rawFactHash), 32);
 ```
 
-A direct Sepolia Satellite read at block `10999434` for the normalized SHARP fact `0x8a9e6885e08b0f85b16114cd889b05219485649a1988a73e377911bd2eac5e6f` returned:
-
-- `isMocked=true`: `valid: true`
-- `isMocked=false`: `valid: false`
-
-This is consistent with mocked registration being complete while real query `01KTDCSWGYZAGANJZYY4E3MDGF` remains in proof generation.
+An early direct Sepolia Satellite read at block `10999434` returned `valid: true` for `isMocked=true` and `valid: false` for `isMocked=false` while real query `01KTDCSWGYZAGANJZYY4E3MDGF` was still in proof generation. After the query completed, the repository resume command returned `valid: true` with `isMocked=false` for the same normalized SHARP fact.
 
 ## Bug: Scarb 2.18 Bootloader PIE Is Not A Reusable Task PIE
 
@@ -300,12 +295,14 @@ Minimal validation:
 
 Full recursive-verifier task PIE:
 
-- Local path: `packages/stwo-cairo/stwo_cairo_verifier/target/execute/stwo_cairo_verifier/execution35/cairo_pie.zip`
+- Stable local path for scripts: `packages/cairo-merkle/target/local-proofs/recursive-verifier-task-pie.zip`
+- Scarb also writes per-run copies under `packages/stwo-cairo/stwo_cairo_verifier/target/execute/stwo_cairo_verifier/executionN/cairo_pie.zip`
 - SHA-256: `74ee9e6665e18e25dd871f728b74e3ba98f46742fd053293d3903022bad2ee37`
 - Compressed size: `79,776,557` bytes
 - Steps: `16,965,079`
 - Program builtins: `output`, `range_check`, `bitwise`
 - Expected application output ends with verifier hash, `1`, and Merkle root `823984307`.
+- Build and validate with `corepack yarn cairo:merkle:build-recursive-task-pie` and `corepack yarn cairo:merkle:check-recursive-task-pie`.
 
 ## Pitfall: Full Verifier Needs A Large Atlantic Worker
 
@@ -328,9 +325,20 @@ Mocked Sepolia L1 fact registration also passed:
 - Satellite: `0x396bF739f7b37D81f6CdD4571fDEF298150db88f`
 - fact registry result: `valid: true` with `isMocked: true`
 
+Real non-mocked Sepolia L1 fact registration passed:
+
+- query: `01KTDCSWGYZAGANJZYY4E3MDGF`
+- completed at: `2026-06-06T04:03:16.648Z`
+- transaction/proof job id: `01KTDCWKTKZWTPP135JDHPZGHK`
+- result: `PROOF_VERIFICATION_ON_L1`, `chain=L1`, `isFactMocked=false`, `isProofMocked=false`
+- Satellite: `0x396bF739f7b37D81f6CdD4571fDEF298150db88f`
+- fact registry result: `valid: true` with `isMocked: false`
+- output hash: `0xb5f4a995135dac40e3888d5e086392559ba5b7bbc7fabb65dc5bf3a5ebc37faf`
+- resume command: `corepack yarn atlantic:merkle:task-pie:resume-real`
+
 ## Pitfall: Real Proof Jobs Can Outlive The Client Poll
 
-The real non-mocked Sepolia query `01KTDCSWGYZAGANJZYY4E3MDGF` was created at `2026-06-06T02:40:16.707Z` and reached `PROOF_GENERATION_AND_VERIFICATION` with worker `L`, stable program, integrity-fact, and SHARP-fact hashes, and `errorReason: null`. The first one-hour client poll timed out while the Atlantic job remained `IN_PROGRESS`; this was not a query failure.
+The real non-mocked Sepolia query `01KTDCSWGYZAGANJZYY4E3MDGF` was created at `2026-06-06T02:40:16.707Z` and reached `PROOF_GENERATION_AND_VERIFICATION` with worker `L`, stable program, integrity-fact, and SHARP-fact hashes, and `errorReason: null`. The first one-hour client poll timed out while the Atlantic job remained `IN_PROGRESS`; this was not a query failure. The query later completed at `2026-06-06T04:03:16.648Z` and registered a non-mocked Sepolia L1 fact successfully.
 
 Do not resubmit the 80 MB PIE when a local poll times out. Resume the existing server-side query instead:
 
@@ -387,15 +395,36 @@ If contacting Atlantic/Herodotus, provide these as compact repro evidence:
   - corrected smoke task PIE passed `01KTDC9B4VDVVMCFF2KSGHASKE`
   - corrected full task PIE passed on `L` `01KTDCJHAK2QHS0TVAC5JF1VTJ`
 
+## Poseidon Merkle Recursive Task PIE Status
+
+The Poseidon Merkle fixture uses Cairo core Poseidon for application hashing, then follows the same Blake-canonical recursive verifier route used by the toy fixture.
+
+Local verified artifacts:
+
+- package: `packages/cairo-merkle-poseidon`
+- root: `-845960492790892884656231863041640742943145074470692494761681786972233302565`
+- Cairo-serde proof felts: `254292`
+- recursive task PIE SHA-256: `17acdc817c1a86310238951fab2840130b835edc0fd3570d52fe2bb94781a890`
+- recursive task PIE steps: `19,455,300`
+- expected recursive verifier output: `3`, verifier hash `-1575579904327646194727519362278749901481907230895578035737745130512097599097`, output length `1`, Poseidon root
+
+Atlantic evidence:
+
+- trace generation passed: `01KTDRW5T557A0A4908T1V9QKC`
+- trace SHARP fact: `0x55255c62a6562c275658d89e4822731edc7f6df44ca71a1b0049b1079cacef45`
+- real L1 with `declaredJobSize=M` failed with `OOMKilled`: `01KTDS0C9WCMN1FWJFTYDQ27EZ`
+- real L1 with `declaredJobSize=L` passed: `01KTDS2CJV6BTG555N0PSD2K9H`, completed at `2026-06-06T07:08:51.187Z`, proof job/transaction id `01KTDS5NGMSS4W4TMKGRXAFKQ7`, Sepolia Satellite `valid: true` with `isMocked: false`
+
+Rule of thumb: use `declaredJobSize=L` for the Poseidon recursive verifier even though trace-only metadata may classify the job as `M`. The L1 pipeline has higher memory pressure than trace-only.
 ## Claim Boundary
 
-The correct status while real query `01KTDCSWGYZAGANJZYY4E3MDGF` remains `IN_PROGRESS` is:
+The correct status after query `01KTDCSWGYZAGANJZYY4E3MDGF` is:
 
 - local STARK proving works;
 - local recursive verification works;
 - the full public recursive-verifier task PIE passes Atlantic trace generation on an `L` worker;
 - public Cairo fixture fact registration works on mocked Sepolia;
-- real proof-backed Sepolia registration has been submitted and is pending, not blocked;
+- real proof-backed Sepolia L1 fact registration works and the Sepolia Satellite returns `valid: true` with `isMocked: false`;
 - production-private transfers are not yet demonstrated because proof and Cairo PIE leakage have not been audited and the fixture still uses a toy application hash.
 
-Do not claim real Ethereum L1 completion until the query reaches `DONE` and the Sepolia Satellite returns `valid: true` with `isMocked: false`.
+It is now accurate to claim end-to-end L1 verification for the public toy recursive-verifier fixture and the public Poseidon Merkle recursive-verifier fixture. Do not claim production privacy or full private-transfer readiness yet.

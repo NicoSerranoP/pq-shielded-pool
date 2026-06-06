@@ -16,7 +16,7 @@ The Atlantic workflow used in this repository is remote proving, not local provi
 
 For our shielded-pool production goal, proof generation must happen locally or inside a privacy model we explicitly trust. The only artifact sent to a remote service or chain should be a proof plus public outputs/facts. The current Atlantic flow is acceptable only for the public toy fixture and L1 verifier integration experiments.
 
-The script `packages/hardhat/scripts/submitAtlanticMerkle.mjs` now enforces this by default: it only submits the known public toy fixture hashes. Any non-fixture upload requires the explicit `--allow-remote-witness-upload` flag or `ATLANTIC_ALLOW_REMOTE_WITNESS_UPLOAD=true`, and that override must not be used with private shielded-pool witnesses.
+The script `packages/hardhat/scripts/submitAtlanticMerkle.mjs` now enforces this by default: it only submits the known public toy fixture hashes or the known public recursive task PIE hash. Any non-fixture upload requires the explicit `--allow-remote-witness-upload` flag or `ATLANTIC_ALLOW_REMOTE_WITNESS_UPLOAD=true`, and that override must not be used with private shielded-pool witnesses.
 
 
 ## Local Stwo Prover Path
@@ -71,52 +71,36 @@ git -C /tmp/scarb-2.18.0 apply \
 cargo build --manifest-path /tmp/scarb-2.18.0/Cargo.toml -p scarb-execute
 ```
 
-Generate the full task PIE locally from the public toy proof:
+Generate and validate the full task PIE locally from the public toy proof:
 
 ```sh
 source /home/yavor/.bashrc
-cd packages/stwo-cairo/stwo_cairo_verifier
-SCARB_PROFILE=proving \
-SCARB_TARGET_DIR="$PWD/target" \
-/tmp/scarb-2.18.0/target/debug/scarb-execute \
-  --no-build \
-  --package stwo_cairo_verifier \
-  --features qm31_opcode \
-  --executable-name stwo_cairo_verifier_array \
-  --arguments-file /home/yavor/yavor/Coding/IC3-2026-Hackathon/pq-shielded-pool/packages/cairo-merkle/target/local-proofs/merkle-proof.blake-canonical.cairo-serde.array-args.json \
-  --layout all_cairo \
-  --target standalone \
-  --output cairo-pie \
-  --print-program-output
+corepack yarn cairo:merkle:build-recursive-task-pie
+corepack yarn cairo:merkle:check-recursive-task-pie
 ```
+
+The build script wraps the patched `scarb-execute` command, captures the local verifier output, copies the latest PIE into a stable ignored path, and runs the pre-upload validator.
 
 Tested artifact:
 
-- path: `packages/stwo-cairo/stwo_cairo_verifier/target/execute/stwo_cairo_verifier/execution35/cairo_pie.zip`
+- stable path: `packages/cairo-merkle/target/local-proofs/recursive-verifier-task-pie.zip`
+- Scarb also writes per-run copies under `packages/stwo-cairo/stwo_cairo_verifier/target/execute/stwo_cairo_verifier/executionN/cairo_pie.zip`
 - SHA-256: `74ee9e6665e18e25dd871f728b74e3ba98f46742fd053293d3903022bad2ee37`
 - compressed size: `79,776,557` bytes
 - steps: `16,965,079`
 - builtins: `output`, `range_check`, `bitwise`
 - return segments: indices `5` and `6`
 
-Submit the public task PIE from `packages/hardhat`:
+Submit or resume the public task PIE through the package scripts:
 
 ```sh
-cd packages/hardhat
-node scripts/submitAtlanticMerkle.mjs \
-  --mock --testnet --result TRACE_GENERATION \
-  --declared-job-size L --layout all_cairo \
-  --pie-file ../stwo-cairo/stwo_cairo_verifier/target/execute/stwo_cairo_verifier/execution35/cairo_pie.zip \
-  --allow-remote-witness-upload --no-satellite
-
-node scripts/submitAtlanticMerkle.mjs \
-  --mock --testnet --result PROOF_VERIFICATION_ON_L1 \
-  --declared-job-size L --layout all_cairo \
-  --pie-file ../stwo-cairo/stwo_cairo_verifier/target/execute/stwo_cairo_verifier/execution35/cairo_pie.zip \
-  --allow-remote-witness-upload
+corepack yarn atlantic:merkle:task-pie:dry-run
+corepack yarn atlantic:merkle:task-pie:mock
+corepack yarn atlantic:merkle:task-pie:real
+corepack yarn atlantic:merkle:task-pie:resume-real
 ```
 
-Use `--real` instead of `--mock` only when the team accepts the proof-generation credit cost.
+Use `task-pie:real` only when the team accepts the proof-generation credit cost. `task-pie:resume-real` re-reads completed query `01KTDCSWGYZAGANJZYY4E3MDGF` and uploads nothing.
 
 Atlantic results:
 
@@ -125,13 +109,53 @@ Atlantic results:
 - full task PIE `M` worker OOM: `01KTDCGVV981506JQVMGZT6RPR`
 - full task PIE `L` trace passed: `01KTDCJHAK2QHS0TVAC5JF1VTJ`
 - mocked Sepolia fact registration passed: `01KTDCP8TXTDXRSTEBZ5SFQ541`
-- mocked Satellite readback: `valid: true`
-- real proof-backed Sepolia query: `01KTDCSWGYZAGANJZYY4E3MDGF`, pending at `PROOF_GENERATION_AND_VERIFICATION` at this update
+- mocked Satellite readback: `valid: true`, `isMocked: true`
+- real proof-backed Sepolia query passed: `01KTDCSWGYZAGANJZYY4E3MDGF`
+- real query completed at: `2026-06-06T04:03:16.648Z`
+- real Satellite readback: `valid: true`, `isMocked: false`
+- real query SHARP fact: `0x8a9e6885e08b0f85b16114cd889b05219485649a1988a73e377911bd2eac5e6f`
 
 Use `declaredJobSize=L` for this verifier. Smaller workers were OOM-killed.
 
 Privacy warning: a Cairo PIE contains execution memory. Only submit this public toy artifact. Do not generate and upload a PIE from private transfer witness execution unless its leakage model has been explicitly reviewed and accepted.
 
+## Poseidon Merkle L1 Workflow
+
+The stronger public Merkle fixture lives at `packages/cairo-merkle-poseidon`. It follows the same local-proof -> Cairo recursive verifier -> task PIE -> Atlantic route as the toy Merkle fixture, but uses Cairo core Poseidon for application hashing.
+
+Local commands:
+
+```sh
+source /home/yavor/.bashrc
+corepack yarn cairo:merkle-poseidon:prove-local
+corepack yarn cairo:merkle-poseidon:prove-recursive
+corepack yarn cairo:merkle-poseidon:verify-recursive-local
+corepack yarn cairo:merkle-poseidon:build-recursive-task-pie
+corepack yarn cairo:merkle-poseidon:check-recursive-task-pie
+```
+
+Atlantic commands for the public Poseidon fixture:
+
+```sh
+corepack yarn atlantic:merkle-poseidon:task-pie:dry-run
+corepack yarn atlantic:merkle-poseidon:task-pie:trace
+corepack yarn atlantic:merkle-poseidon:task-pie:real
+corepack yarn atlantic:merkle-poseidon:task-pie:resume-real
+```
+
+Tested results:
+
+- task PIE SHA-256: `17acdc817c1a86310238951fab2840130b835edc0fd3570d52fe2bb94781a890`
+- task PIE steps: `19,455,300`
+- trace-only query: `01KTDRW5T557A0A4908T1V9QKC`
+- trace-only SHARP fact: `0x55255c62a6562c275658d89e4822731edc7f6df44ca71a1b0049b1079cacef45`
+- `declaredJobSize=M` real L1 query `01KTDS0C9WCMN1FWJFTYDQ27EZ` failed with `OOMKilled`
+- `declaredJobSize=L` real L1 query `01KTDS2CJV6BTG555N0PSD2K9H` passed on Sepolia L1
+- real L1 completed at: `2026-06-06T07:08:51.187Z`
+- real proof job/transaction id: `01KTDS5NGMSS4W4TMKGRXAFKQ7`
+- real Sepolia Satellite readback: `valid: true`, `isMocked: false`
+
+The Poseidon recursive task PIE is recognized by the Atlantic upload guard as a known public fixture. If the source changes and the PIE hash changes, the guard will block remote upload until the team confirms the artifact is still public.
 ## What Gets Verified On L1
 
 The L1 contract does not directly verify our Merkle path inputs. It checks that SHARP/Atlantic registered a Cairo fact for:
@@ -265,7 +289,7 @@ For `mockFactHash=true`, this workflow does not require Sepolia ETH in our own w
 
 For `mockFactHash=false` on Sepolia, our wallet still should not need Sepolia ETH unless we deploy or call our own contract. Atlantic may consume project credits for proof generation even when testnet proof verification itself is free. The full recursive verifier requires an `L` trace worker, so do not estimate its cost from the `S` price. Check current Atlantic pricing and the project balance before starting another real job.
 
-Do not run `corepack yarn atlantic:merkle:real` unless the team is comfortable consuming Atlantic credits for the proof-generation part of the workflow.
+Do not run `corepack yarn atlantic:merkle:real` or `corepack yarn atlantic:merkle:task-pie:real` unless the team is comfortable consuming Atlantic credits for the proof-generation part of the workflow.
 
 ## Test Workflow: No Real Proof Cost
 
@@ -342,12 +366,24 @@ A local Hardhat test can use a mock implementation of `ICairoFactRegistry` and t
 
 This path exercises the real SHARP/S-two L1 verification flow on Ethereum Sepolia.
 
-1. Compile the Cairo program and prepare the input file.
-
-2. Submit the same query as above, but use `mockFactHash=false`.
+1. Build and validate the recursive task PIE.
 
 ```sh
-corepack yarn atlantic:merkle:real
+source /home/yavor/.bashrc
+corepack yarn cairo:merkle:build-recursive-task-pie
+corepack yarn cairo:merkle:check-recursive-task-pie
+```
+
+2. Submit the task PIE with `mockFactHash=false`.
+
+```sh
+corepack yarn atlantic:merkle:task-pie:real
+```
+
+For the already completed public fixture, re-read the result without uploading anything:
+
+```sh
+corepack yarn atlantic:merkle:task-pie:resume-real
 ```
 
 3. Wait for the query to finish. L1 verification queries are verified by Atlantic/SHARP, but proof files are not downloaded from L1 verification jobs. If we want a proof artifact for inspection, submit a separate `PROOF_GENERATION` query.
@@ -390,10 +426,10 @@ Completed locally and in public integration testing:
 
 Remaining:
 
-1. Record the final non-mocked Satellite readback for real query `01KTDCSWGYZAGANJZYY4E3MDGF`.
-2. Replace the temporary patched-Scarb build with a maintained repository command or upstreamed Scarb support.
-3. Replace the toy hash with a Cairo-friendly production hash and keep the output/fact-hash interface stable.
-4. Audit proof and Cairo PIE leakage before any private-transfer artifact is submitted remotely.
+1. Replace the temporary patched-Scarb build with a maintained repository command or upstreamed Scarb support.
+2. Replace the toy hash with a Cairo-friendly production hash and keep the output/fact-hash interface stable.
+3. Audit proof and Cairo PIE leakage before any private-transfer artifact is submitted remotely.
+4. Repeat the full local proof, recursive task-PIE validation, trace-only Atlantic check, and real L1 verification for each larger transfer statement.
 
 ## Source References
 
