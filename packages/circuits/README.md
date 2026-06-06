@@ -1,6 +1,6 @@
 ## Installing Provekit
 
-In order to use `provekit-cli` you need to install the binary in your machine. Follow these steps (in Linux):
+In order to use `provekit-cli` you need to install the binary in your machine. Follow these steps:
 
 ```bash
 # Install Rust
@@ -9,20 +9,21 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
 # Install specific noir version compatible with Provekit
 noirup --version v1.0.0-beta.11
-# Clone the repository
+
+# Clone provekit to $HOME (the Makefile expects it there by default)
+cd $HOME
 git clone https://github.com/worldfnd/provekit
 
-cd provekit
+cd $HOME/provekit
 # Build from source
 cargo build --release
-# Move binary and library to a directory in your PATH
-mv <REPO_PATH>/provekit/target/release/provekit-cli $HOME/prove-kit/bin/
-mv <REPO_PATH>/provekit/target/release/provekit-cli.d $HOME/prove-kit/bin/
+# Move binary to a directory in your PATH
+mkdir -p $HOME/prove-kit/bin
+mv $HOME/provekit/target/release/provekit-cli $HOME/prove-kit/bin/
 # Make the binary executable
 chmod +x $HOME/prove-kit/bin/provekit-cli
-# Add the binary to your PATH
+# Add the binary to your PATH (use ~/.zshrc if on zsh)
 echo 'export PATH="$HOME/prove-kit/bin:$PATH"' >> ~/.bashrc
-# Reset your terminal or run
 source ~/.bashrc
 # Test it with
 provekit-cli --help
@@ -30,12 +31,24 @@ provekit-cli --help
 
 ## Prepare, prove and verify the circuits
 
-```bash
-cd circuits
+From `packages/circuits/`, use `make` targets:
 
-provekit-cli prepare
-provekit-cli prove
-provekit-cli verify
+```bash
+cd packages/circuits
+
+make build      # Step 0: compile the Noir circuit (nargo build)
+make prepare    # Step 1: R1CS + Groth16 trusted setup
+make prove      # Step 2: generate proof from Prover.toml
+make solidity   # Step 3: emit Verifier.sol to packages/hardhat/contracts/
+make calldata   # Step 4: export EVM calldata for contract tests
+make            # Runs all steps up to solidity (default)
+make clean      # Remove all generated artifacts
+```
+
+If you cloned provekit somewhere other than `$HOME/provekit`, override the path:
+
+```bash
+make PROVEKIT_SRC=/path/to/provekit
 ```
 
 
