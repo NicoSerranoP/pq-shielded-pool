@@ -11,10 +11,3 @@ pub struct MerkleProof {
     pub indices: [bool; MAX_DEPTH],
     pub siblings: [Field; MAX_DEPTH],
 }
-
-pub struct Signature {
-    pub hashed_message: [u8; 32],
-    pub pub_key_x: [u8; 32],
-    pub pub_key_y: [u8; 32],
-    pub signature: [u8; 64],
-}

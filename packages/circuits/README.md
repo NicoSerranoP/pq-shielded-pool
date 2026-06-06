@@ -15,6 +15,9 @@ git clone https://github.com/worldfnd/provekit
 cd provekit
 # Build from source
 cargo build --release
+# Create a directory for the binary
+mkdir prove-kit
+mkdir prove-kit/bin
 # Move binary and library to a directory in your PATH
 mv <REPO_PATH>/provekit/target/release/provekit-cli $HOME/prove-kit/bin/
 mv <REPO_PATH>/provekit/target/release/provekit-cli.d $HOME/prove-kit/bin/
