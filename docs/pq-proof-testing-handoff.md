@@ -18,13 +18,15 @@ What we can say now:
 - The full recursive verifier task PIE completes Atlantic trace generation on an `L` worker.
 - The recursive verifier fact is registered on mocked Sepolia and the Satellite registry returns `valid: true`.
 - The same public recursive-verifier task PIE is verified through real non-mocked Sepolia L1 fact registration, and the Satellite registry returns `valid: true` with `isMocked: false`.
+- Local Stone proof generation, local Stone verification, annotated proof generation, and adapter split-proof extraction work for the public Poseidon Merkle fixture.
+- A full-bootloader legacy-GPS Stone proof for the public Poseidon Merkle fixture verifies through the deployed StarkWare GPS verifier contracts on a local Hardhat mainnet fork.
 
 What we cannot say yet:
 
 - We should not describe the current proof artifact as production-private. Stwo Cairo is not zero-knowledge by default, so proof/public-memory leakage still needs a privacy audit or a hiding/recursive architecture.
 - We should not describe the toy Merkle statement as production cryptography. The application hash is still a toy fixture.
 
-A careful external statement is: local STARK proving, local recursive verification, Atlantic trace generation, and real Sepolia L1 fact registration all work for the public toy Merkle recursive-verifier fixture. Production-private transfers still require a proof-leakage review and a production hash/public-output statement.
+A careful external statement is: local STARK proving, local recursive verification, Atlantic trace generation, real Sepolia L1 fact registration for public fixtures, local Stone final proving, and local-fork deployed-GPS verification for the public Poseidon Merkle fixture all work. Production-private transfers still require a proof-leakage review, a production public-output statement, and a clean reproducible full-bootloader AIR generation path.
 
 ## Privacy Rules
 
@@ -82,6 +84,28 @@ The build script writes the stable ignored artifact:
 
 ```text
 packages/cairo-merkle/target/local-proofs/recursive-verifier-task-pie.zip
+```
+
+
+Run the local Stone proof path for the public Poseidon Merkle fixture:
+
+```sh
+source /home/yavor/.bashrc
+corepack yarn cairo:merkle-poseidon:prove-stone
+```
+
+This uses repo-local Stone binaries under `tools/stone/` and writes ignored proof artifacts under `packages/cairo-merkle-poseidon/target/local-proofs/stone/`.
+
+Run the deployed-GPS-compatible proof path against existing full-bootloader Stone AIR inputs:
+
+```sh
+corepack yarn cairo:merkle-poseidon:prove-stone-legacy-gps
+```
+
+If a local mainnet fork is listening on `http://127.0.0.1:8545`, submit the split proof to the forked deployed GPS verifier contracts:
+
+```sh
+corepack yarn cairo:merkle-poseidon:prove-stone-legacy-gps:fork
 ```
 
 If the task PIE already exists but the build log is unavailable, validate the archive-only invariants with:
@@ -152,6 +176,18 @@ Worker-size behavior for the 16,965,079-step task PIE:
 - `M` OOM-killed: `01KTDCGVV981506JQVMGZT6RPR`.
 - `L` completed trace generation: `01KTDCJHAK2QHS0TVAC5JF1VTJ`.
 
+Direct local Stone to deployed GPS verifier on local mainnet fork:
+
+- Status: passes for the public Poseidon Merkle full-bootloader proof.
+- Patch: `patches/stone-prover-legacy-gps-public-input-seed.patch`.
+- Binaries: `tools/stone/bin/cpu_air_prover_legacy_gps`, `tools/stone/bin/cpu_air_verifier_legacy_gps`.
+- Local prover time: `56.126 sec`.
+- Split proof summary: `main_proof_words=540`, `trace_merkle_statements=3`, `fri_merkle_statements=8`, `continuous_memory_pages=1`.
+- Fork verifier result: trace statements `0..2`, FRI statements `0..7`, continuous page `0`, and `Main proof` all verified.
+- This path sends only proof/public verification calldata to the fork; proof generation stays local.
+- Direct Sepolia wrapper added: `corepack yarn cairo:merkle-poseidon:prove-stone-legacy-gps:sepolia-preflight` and `corepack yarn cairo:merkle-poseidon:prove-stone-legacy-gps:sepolia`.
+- Current Sepolia blocker: `SEPOLIA_RPC_URL` and Atlantic API key are configured, but no funded `STONE_SEPOLIA_PRIVATE_KEY` is present and no Sepolia GPS helper addresses are configured. The documented Sepolia SHARP verifier has bytecode, but the mainnet-fork helper addresses do not.
+
 Artifact-shape result:
 
 - Scarb bootloader-target PIEs are nested bootloader executions and fail when Atlantic bootloads them again.
@@ -195,15 +231,19 @@ Verified locally on 2026-06-06:
 - Local Cairo recursive verification passes and outputs verifier hash, output length `1`, and the Poseidon root.
 - The recursive verifier task PIE validates locally with SHA-256 `17acdc817c1a86310238951fab2840130b835edc0fd3570d52fe2bb94781a890` and `19,455,300` Cairo VM steps.
 - Atlantic trace generation passes: query `01KTDRW5T557A0A4908T1V9QKC`, SHARP fact `0x55255c62a6562c275658d89e4822731edc7f6df44ca71a1b0049b1079cacef45`.
+- Local Stone proof generation and local Stone verification pass with Cairo layout `starknet`, `n_steps=131072`, and adapter split-proof extraction (`main_proof_words=540`, `trace_merkle_statements=3`, `fri_merkle_statements=8`).
 
 Current L1 status:
 
 - Real Sepolia L1 query `01KTDS0C9WCMN1FWJFTYDQ27EZ` with `declaredJobSize=M` failed with `OOMKilled`; use `L` for this Poseidon recursive verifier.
 - Real Sepolia L1 query `01KTDS2CJV6BTG555N0PSD2K9H` with `declaredJobSize=L` passed. It completed at `2026-06-06T07:08:51.187Z`, proof job/transaction id `01KTDS5NGMSS4W4TMKGRXAFKQ7`, SHARP fact `0x55255c62a6562c275658d89e4822731edc7f6df44ca71a1b0049b1079cacef45`, and Sepolia Satellite readback `valid: true` with `isMocked: false`. Resume/read it without upload using `corepack yarn atlantic:merkle-poseidon:task-pie:resume-real`.
+- Re-read on 2026-06-06 from this machine: `corepack yarn atlantic:merkle-poseidon:task-pie:resume-real` returned `status: DONE`, `result: PROOF_VERIFICATION_ON_L1`, `isFactMocked: false`, `isProofMocked: false`, and Satellite `valid: true`.
+
 ## Recommended Next Steps
 
 1. Turn the tested Scarb patch into a maintained wrapper or upstream contribution instead of depending on a manually patched `/tmp` clone.
 2. Keep all transfer witness proving local. Submit only audited public recursive-verifier artifacts.
-3. Replace the toy transfer hash with the selected production hash and repeat local proof, local recursive verification, task-PIE validation, Atlantic trace generation, and L1 registration.
-4. Complete a proof/public-memory leakage review before using real private-transfer proof artifacts.
-5. For larger programs, start with `corepack yarn cairo:merkle:build-recursive-task-pie` and `corepack yarn cairo:merkle:check-recursive-task-pie`, then run a trace-only Atlantic query before spending credits on real L1 verification.
+3. Continue the local final-proof L1 route documented in `docs/cairo-l1-verification-workflow.md`: Stone proof generation and zkSecurity `stark-evm-adapter` split-proof generation now work locally; the remaining work is the existing StarkWare Ethereum verifier call path.
+4. Replace the toy transfer hash with the selected production hash and repeat local proof, local recursive verification, task-PIE validation, and whichever L1 route the team selects.
+5. Complete a proof/public-memory leakage review before using real private-transfer proof artifacts.
+6. For larger programs, start with `corepack yarn cairo:merkle:build-recursive-task-pie` and `corepack yarn cairo:merkle:check-recursive-task-pie`, then run a trace-only Atlantic query before spending credits on real L1 verification.

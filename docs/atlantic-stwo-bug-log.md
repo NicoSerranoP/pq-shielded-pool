@@ -416,6 +416,78 @@ Atlantic evidence:
 - real L1 with `declaredJobSize=L` passed: `01KTDS2CJV6BTG555N0PSD2K9H`, completed at `2026-06-06T07:08:51.187Z`, proof job/transaction id `01KTDS5NGMSS4W4TMKGRXAFKQ7`, Sepolia Satellite `valid: true` with `isMocked: false`
 
 Rule of thumb: use `declaredJobSize=L` for the Poseidon recursive verifier even though trace-only metadata may classify the job as `M`. The L1 pipeline has higher memory pressure than trace-only.
+
+## Pitfall/Fix: Current Stone Seed Format Differs From Deployed GPS
+
+This is separate from the working Atlantic/Sepolia proof-of-proof path above. During direct local fork testing on 2026-06-06, the zkSecurity `stark-evm-adapter` verifier flow was confirmed with its bundled Fibonacci Stone proof against a local mainnet fork, then debugged for the Poseidon Merkle proof.
+
+Observed checkpoints before the fix:
+
+- Adapter Fibonacci proof verified on a local Hardhat mainnet fork against the deployed StarkWare verifier contracts.
+- The standalone Poseidon Merkle Stone proof passed adapter trace and FRI helper verification, then the main GPS verifier reverted with task metadata/output-shape errors.
+- A simple bootloader proof with Poseidon program hashing proved and verified locally with Stone, but the main GPS verifier rejected it as `Inconsistent program output length` because deployed GPS expects the full bootloader output format.
+- The full bootloader AIR shape fixed the output format, but the main proof still reverted even after trace, FRI, and continuous memory-page verification passed.
+
+Root cause:
+
+- Current Stone `CpuAirStatement::GetInitialHashChainSeed()` serializes `n_verifier_friendly_commitment_layers` as the first seed word.
+- The deployed StarkWare GPS Solidity verifier's `getPublicInputHash()` derives the Fiat-Shamir seed from `log_n_steps`, `rc_min`, `rc_max`, `layout`, dynamic params, segment metadata, padding, main-page length, continuous-page headers, and continuous-page facts. It does not include the leading verifier-friendly-commitment-layer word.
+- That one-word mismatch changes the CPU verifier interaction elements. Trace and FRI helper proofs can pass, but the main CPU verifier rejects the proof because its public-input hash chain diverges.
+
+Diagnostic values for the Poseidon Merkle full-bootloader proof:
+
+```text
+EVM seed:       0xbabec59bdbf58acdc7633488ad666fe37f95daae0be38c4e31c39a8917ae70e9
+EVM z:          0x3524d3073fe1b21d71922fd7fecbac03e2f6495ce53f99770a9eee80db4536
+EVM alpha:      0xf4e656a39fed9d97147eedcf786e12eae2691ea524a29ddfd62a24c7457184
+Stone seed +0:  0xeaa734682e48959c7dfb11c022e266529931e1ca907f30cabb2f84ca0d6baa39
+Stone z:        0x5e6d96afb1ed90a8554830b23b6121355f6330703951e6fdf11044fc686fbef
+Stone alpha:    0x400aeecfc7c79260f86d84cdf730ef796bb18a395c8145e14f0891777feeb34
+```
+
+The Stone `z` and `alpha` values matched the split proof annotation exactly, proving the mismatch was seed serialization rather than page registration or task metadata.
+
+Fix implemented for direct deployed-GPS testing:
+
+- Patch file: `patches/stone-prover-legacy-gps-public-input-seed.patch`
+- Patched binaries:
+  - `tools/stone/bin/cpu_air_prover_legacy_gps`
+  - `tools/stone/bin/cpu_air_verifier_legacy_gps`
+- The patched Docker build ran upstream Stone tests and its Fibonacci e2e proof verification successfully.
+
+Successful direct local-fork result for the public Poseidon Merkle full-bootloader proof:
+
+```text
+Stone prover time: 56.126 sec
+Proof verified successfully.
+main_proof_words=540
+trace_merkle_statements=3
+fri_merkle_statements=8
+continuous_memory_pages=1
+Verified: Trace 0
+Verified: Trace 1
+Verified: Trace 2
+Verified: FRI statement: 0
+Verified: FRI statement: 1
+Verified: FRI statement: 2
+Verified: FRI statement: 3
+Verified: FRI statement: 4
+Verified: FRI statement: 5
+Verified: FRI statement: 6
+Verified: FRI statement: 7
+Verified: register continuous page: 0
+Verified: Main proof
+```
+
+Repro commands after full-bootloader Stone AIR inputs exist:
+
+```sh
+corepack yarn cairo:merkle-poseidon:prove-stone-legacy-gps
+corepack yarn cairo:merkle-poseidon:prove-stone-legacy-gps:fork
+```
+
+Rule of thumb: for direct verification against the currently deployed GPS verifier, use the `*_legacy_gps` Stone binaries. For ordinary local Stone proving without deployed-GPS compatibility, the upstream/current binaries remain available as `tools/stone/bin/cpu_air_prover` and `tools/stone/bin/cpu_air_verifier`.
+
 ## Claim Boundary
 
 The correct status after query `01KTDCSWGYZAGANJZYY4E3MDGF` is:
@@ -427,4 +499,24 @@ The correct status after query `01KTDCSWGYZAGANJZYY4E3MDGF` is:
 - real proof-backed Sepolia L1 fact registration works and the Sepolia Satellite returns `valid: true` with `isMocked: false`;
 - production-private transfers are not yet demonstrated because proof and Cairo PIE leakage have not been audited and the fixture still uses a toy application hash.
 
-It is now accurate to claim end-to-end L1 verification for the public toy recursive-verifier fixture and the public Poseidon Merkle recursive-verifier fixture. Do not claim production privacy or full private-transfer readiness yet.
+It is now accurate to claim end-to-end Sepolia L1 fact verification for the public toy recursive-verifier fixture and the public Poseidon Merkle recursive-verifier fixture. It is also accurate to claim direct deployed-GPS verifier compatibility for the public Poseidon Merkle full-bootloader Stone proof on a local mainnet fork. Do not claim production privacy or full private-transfer readiness yet.
+
+## Pitfalls: Local Stone AIR And Proving
+
+These came up while building the local Stone proof path for `packages/cairo-merkle-poseidon` on 2026-06-06.
+
+- Stone requires the trace length to be a power of two. The patched Scarb runner must keep trace padding enabled when `--save-stone-air-inputs` is used.
+- The Poseidon Merkle fixture should use Cairo layout `starknet` for the current Stone path. A padded `all_cairo` AIR failed with `Virtual column add_mod/p0/addr not found` against the tested Stone `v3.0.3` binary/config combination.
+- Stone reads `trace.bin` and `memory.bin` paths relative to the working directory named in `air_private_input.json`. Run `cpu_air_prover` from the generated `stone-air-inputs` directory or use matching paths.
+- `/tmp` was mounted `noexec` on the test machine. Downloaded Stone binaries could not run there, so the working binaries are committed under `tools/stone/bin/`.
+- The zkSecurity `stark-evm-adapter` expects Stone proof plus verifier annotation files, not the direct JSON emitted by the `stwo_cairo_prover` path.
+
+Working command:
+
+```sh
+corepack yarn cairo:merkle-poseidon:prove-stone
+```
+
+Successful standalone local result: Cairo layout `starknet`, `n_steps=131072`, Stone proof verified locally, annotated proof generated, and split proof extracted with `main_proof_words=540`, `trace_merkle_statements=3`, `fri_merkle_statements=8`, `continuous_memory_pages=0`.
+
+Successful full-bootloader legacy-GPS result: Stone proof verified locally, split proof extracted with `main_proof_words=540`, `trace_merkle_statements=3`, `fri_merkle_statements=8`, `continuous_memory_pages=1`, and the deployed GPS verifier flow on a local mainnet fork printed `Verified: Main proof`.

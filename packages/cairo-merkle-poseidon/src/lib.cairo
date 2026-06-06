@@ -4,6 +4,7 @@ const INPUT_LEN: usize = 10;
 const LEAF_DOMAIN: felt252 = 1;
 const NODE_DOMAIN: felt252 = 0;
 const EXPECTED_FIXTURE_ROOT: felt252 = -845960492790892884656231863041640742943145074470692494761681786972233302565;
+const L1_FACT_PROGRAM_HASH: felt252 = -81734688613212704292815681115883937935697323982780852113272547146412828778;
 
 pub fn poseidon_pair_hash(left: felt252, right: felt252, domain: felt252) -> felt252 {
     let mut values: Array<felt252> = ArrayTrait::new();
@@ -52,6 +53,27 @@ fn read_felt(ref input: Array<felt252>) -> felt252 {
 
 #[executable]
 pub fn main(mut input: Array<felt252>) -> Array<felt252> {
+    let root = compute_root_from_input(ref input);
+
+    let mut output: Array<felt252> = ArrayTrait::new();
+    output.append(root);
+    output
+}
+
+#[executable]
+pub fn main_l1_fact(mut input: Array<felt252>) -> Array<felt252> {
+    let root = compute_root_from_input(ref input);
+
+    let mut output: Array<felt252> = ArrayTrait::new();
+    output.append(1);
+    output.append(4);
+    output.append(L1_FACT_PROGRAM_HASH);
+    output.append(1);
+    output.append(root);
+    output
+}
+
+fn compute_root_from_input(ref input: Array<felt252>) -> felt252 {
     assert(input.len() == INPUT_LEN, 'bad_input_len');
 
     let leaf_left = read_felt(ref input);
@@ -65,7 +87,7 @@ pub fn main(mut input: Array<felt252>) -> Array<felt252> {
     let sibling_3 = read_felt(ref input);
     let index_3 = read_felt(ref input);
 
-    let root = compute_merkle_root(
+    compute_merkle_root(
         leaf_left,
         leaf_right,
         sibling_0,
@@ -76,11 +98,7 @@ pub fn main(mut input: Array<felt252>) -> Array<felt252> {
         index_2,
         sibling_3,
         index_3,
-    );
-
-    let mut output: Array<felt252> = ArrayTrait::new();
-    output.append(root);
-    output
+    )
 }
 
 #[cfg(test)]

@@ -10,6 +10,97 @@ For L1 verification, prefer the Cairo/SHARP/Atlantic path instead of custom loca
 
 Reason: SHARP already has an Ethereum verifier flow for Cairo program executions. A custom Stwo AIR proof is useful for local experiments, but it is not directly accepted by SHARP's deployed L1 verifier unless it is wrapped into the Cairo/SHARP pipeline.
 
+## Local Proof-of-Proof L1 Route Investigation
+
+Status on 2026-06-06: local Stone proving and local Stone verification work in this repository for the public Poseidon Merkle fixture. The full-bootloader legacy-GPS Stone proof also verifies through the deployed StarkWare GPS verifier contracts on a local Hardhat mainnet fork.
+
+"Proof of a proof" is the right abstraction here. It is STARK recursion: prove the private Merkle statement locally, run a Cairo verifier that checks that proof, then prove the verifier execution and register only the resulting public fact on Ethereum L1.
+
+The repository already performs the first recursive layer locally:
+
+1. Generate the Merkle STARK proof locally with `stwo_cairo_prover`.
+2. Verify that proof locally inside the Cairo recursive verifier.
+3. Build a Cairo task PIE for that verifier execution.
+
+The current Atlantic route performs the final proving step remotely. That is acceptable for the public toy fixtures, but it is not the production privacy target. For private transfers, the desired route is local final proving followed by L1 verification only.
+
+The most concrete lead for avoiding custom Solidity verifier work is zkSecurity STARK-EVM adapter:
+
+- Repository: https://github.com/zksecurity/stark-evm-adapter
+- Purpose: convert StarkWare Stone prover outputs into the split-proof calldata structure expected by StarkWare Ethereum verifier contracts.
+- Local smoke test: `cargo test -q` passed in `/tmp/stark-evm-adapter` on 2026-06-06.
+- Required inputs are Stone-specific: `cpu_air_prover --out_file` JSON proof, `cpu_air_verifier --annotation_file`, `cpu_air_verifier --extra_output_file`, and fact-topology data.
+
+Important limitation: the adapter does not currently accept the JSON proof emitted by our `stwo_cairo_prover` path. It expects Stone proof and annotation outputs. So this is not a drop-in replacement for Atlantic yet.
+
+Local Stone result for the public Poseidon Merkle fixture:
+
+```sh
+corepack yarn cairo:merkle-poseidon:prove-stone
+```
+
+This command completed on 2026-06-06. It runs the patched Scarb 2.18 executable locally with `--save-stone-air-inputs`, then runs repo-local Stone proving and verification binaries. The successful run produced:
+
+- Cairo layout: `starknet`
+- AIR steps: `131072`
+- Stone prover time: `130.237 sec`
+- local verifier result: `Proof verified successfully`
+- adapter split proof summary: `main_proof_words=540`, `trace_merkle_statements=3`, `fri_merkle_statements=8`, `continuous_memory_pages=0`
+
+The generated proof artifacts are under the ignored directory `packages/cairo-merkle-poseidon/target/local-proofs/stone/`. The committed reproducibility pieces are `packages/cairo-merkle-poseidon/scripts/prove-local-stone.sh`, `patches/scarb-2.18.0-cairo1-task-pie.patch`, `tools/stone/`, and `tools/stark-evm-adapter/split_proof_summary.rs`.
+
+Direct deployed-GPS-compatible Stone result:
+
+```sh
+corepack yarn cairo:merkle-poseidon:prove-stone-legacy-gps
+corepack yarn cairo:merkle-poseidon:prove-stone-legacy-gps:fork
+```
+
+This path uses the full-bootloader Stone AIR inputs and the patched binaries `tools/stone/bin/cpu_air_prover_legacy_gps` and `tools/stone/bin/cpu_air_verifier_legacy_gps`. The patch is recorded at `patches/stone-prover-legacy-gps-public-input-seed.patch` and removes the current Stone-only leading `n_verifier_friendly_commitment_layers` seed word so that the proof matches the deployed GPS Solidity verifier public-input hash.
+
+Successful local mainnet-fork verifier result on 2026-06-06:
+
+- Stone prover time: `56.126 sec`
+- local verifier result: `Proof verified successfully`
+- adapter split proof summary: `main_proof_words=540`, `trace_merkle_statements=3`, `fri_merkle_statements=8`, `continuous_memory_pages=1`
+- fork verifier result: trace statements `0..2` verified, FRI statements `0..7` verified, continuous page `0` registered, and `Verified: Main proof`
+
+This is stronger than the Atlantic remote-proving flow for privacy because proof generation stays local. It is still a local fork test, not a Sepolia transaction, and it does not by itself prove that the proof artifact is zero-knowledge for private transfers.
+
+Sepolia direct-verification preflight:
+
+```sh
+corepack yarn cairo:merkle-poseidon:prove-stone-legacy-gps:sepolia-preflight
+corepack yarn cairo:merkle-poseidon:prove-stone-legacy-gps:sepolia
+```
+
+The wrapper requires a funded testnet key and Sepolia addresses for the GPS main verifier, memory-page registry, trace Merkle statement contract, and FRI statement contract. A check against the configured `SEPOLIA_RPC_URL` on 2026-06-06 found:
+
+- Ethereum Sepolia chain id: `0xaa36a7`
+- documented Sepolia SHARP verifier `0x07ec0D28e50322Eb0C159B9090ecF3aeA8346DFe`: code present
+- local-fork adapter default helper addresses: no code on Sepolia
+- StarkEx mainnet SHARP helper addresses: no code on Sepolia
+
+So direct local-proof-to-Sepolia verification is not yet complete. We need either the Sepolia helper addresses that match the adapter flow, or we need to deploy a test GPS verifier/helper set to Sepolia using a funded testnet key.
+
+Local machine prerequisites checked on 2026-06-06:
+
+- `anvil`: not found, even after `source /home/yavor/.bashrc`
+- `forge`: not found, even after `source /home/yavor/.bashrc`
+- `cpu_air_prover`: now committed at `tools/stone/bin/cpu_air_prover`
+- `cpu_air_verifier`: now committed at `tools/stone/bin/cpu_air_verifier`
+- `packages/hardhat/.env`: has `SEPOLIA_RPC_URL`, but no mainnet RPC variable for the adapter fork demo
+
+Remaining checks before this is production-ready:
+
+1. Make full-bootloader AIR generation reproducible from a clean checkout, not only from the patched local Scarb/proving-utils tree used during this debugging session.
+2. Repeat the same local Stone plus direct GPS verifier route for the final private-transfer statement, not only the public Poseidon Merkle fixture.
+3. Decide whether production will submit direct GPS verifier calldata, Satellite fact checks, or both.
+4. Audit proof/public-memory leakage before using this with private witnesses.
+5. Confirm that the deployed verifier path remains purely STARK/FRI based and does not add a non-post-quantum wrapper.
+
+This is now a credible production architecture candidate: local private proving, then public L1 verification through existing StarkWare verifier contracts. It avoids uploading private witnesses to Atlantic and avoids writing a custom verifier contract, but it still needs clean reproducibility and privacy review before real transfers.
+
 ## Privacy Verdict
 
 The Atlantic workflow used in this repository is remote proving, not local proving. It uploads `programFile` and `inputFile` to `https://atlantic.api.herodotus.cloud/atlantic-query` as multipart form fields. That means private Merkle witnesses, note secrets, nullifiers before publication, path siblings, or any other sensitive transfer data must not be submitted through this path.

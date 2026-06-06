@@ -1,8 +1,28 @@
 diff --git a/extensions/scarb-execute/src/lib.rs b/extensions/scarb-execute/src/lib.rs
-index 2322825..780ff66 100644
+index 2322825..765e028 100644
 --- a/extensions/scarb-execute/src/lib.rs
 +++ b/extensions/scarb-execute/src/lib.rs
-@@ -172,22 +172,40 @@ fn execute_standalone(
+@@ -17,7 +17,9 @@ use cairo_program_runner_lib::{
+ };
+ use cairo_vm::Felt252;
+ use cairo_vm::cairo_run::cairo_run_program;
+-use cairo_vm::cairo_run::{CairoRunConfig, cairo_run_program_with_initial_scope};
++use cairo_vm::cairo_run::{
++    CairoRunConfig, cairo_run_program_with_initial_scope, write_encoded_memory, write_encoded_trace,
++};
+ use cairo_vm::types::exec_scope::ExecutionScopes;
+ use cairo_vm::types::layout_name::LayoutName;
+ use cairo_vm::types::program::Program;
+@@ -40,7 +42,7 @@ use scarb_ui::components::Status;
+ use serde_json::{Value, json};
+ use std::env;
+ use std::fs;
+-use std::io::{self};
++use std::io::{self, BufWriter};
+ use std::str::FromStr;
+ use stwo_cairo_adapter::adapter::adapt;
+ 
+@@ -172,22 +174,40 @@ fn execute_standalone(
  
      let (hints, string_to_hint) = build_hints_dict(&executable.program.hints);
  
@@ -56,7 +76,20 @@ index 2322825..780ff66 100644
      .context("failed setting up program")?;
  
      let cairo_hint_processor = CairoHintProcessor {
-@@ -237,10 +255,10 @@ fn build_cairo_run_config(
+@@ -224,8 +244,10 @@ fn build_cairo_run_config(
+     target: &ExecutionTarget,
+     args: &ExecutionArgs,
+ ) -> Result<CairoRunConfig<'static>> {
+-    let relocate_mem =
+-        output.is_standard() || args.run.print_resource_usage || args.run.save_profiler_trace_data;
++    let relocate_mem = output.is_standard()
++        || args.run.print_resource_usage
++        || args.run.save_profiler_trace_data
++        || args.run.save_stone_air_inputs;
+     if target.is_bootloader() {
+         Ok(get_cairo_run_config(
+             &None,
+@@ -237,16 +259,17 @@ fn build_cairo_run_config(
          )?)
      } else {
          Ok(CairoRunConfig {
@@ -66,12 +99,95 @@ index 2322825..780ff66 100644
 -            proof_mode: true,
 -            disable_trace_padding: true,
 +            proof_mode: !output.is_cairo_pie(),
-+            disable_trace_padding: !output.is_cairo_pie(),
++            disable_trace_padding: !(output.is_cairo_pie() || args.run.save_stone_air_inputs),
              fill_holes: true,
              secure_run: None,
              relocate_mem,
+             trace_enabled: output.is_standard()
+                 || args.run.print_resource_usage
+-                || args.run.save_profiler_trace_data,
++                || args.run.save_profiler_trace_data
++                || args.run.save_stone_air_inputs,
+             ..Default::default()
+         })
+     }
+@@ -270,6 +293,10 @@ pub fn execute(
+         .clone()
+         .unwrap_or(ExecutionTarget::Standalone);
+     output.validate(&target)?;
++    ensure!(
++        !(args.run.save_stone_air_inputs && output.is_cairo_pie()),
++        "`--save-stone-air-inputs` cannot be used with `--output cairo-pie`; Stone inputs require proof-mode trace and memory output"
++    );
+ 
+     if !args.no_build {
+         let filter = PackagesFilter::generate_for::<Metadata>([package.clone()].iter());
+@@ -370,6 +397,16 @@ pub fn execute(
+         fs::write(input_path, serde_json::to_string(&adapted)?)?;
+     }
+ 
++    if args.run.save_stone_air_inputs {
++        let stone_output_dir = execution_output_dir.join("stone-air-inputs");
++        fs::create_dir_all(&stone_output_dir)?;
++        save_stone_air_inputs(&runner, &stone_output_dir)?;
++        ui.print(Status::new(
++            "Saving Stone AIR inputs to:",
++            &display_path(&scarb_target_dir, &stone_output_dir),
++        ));
++    }
++
+     if args.run.save_profiler_trace_data {
+         ensure!(
+             build_target.params.get("sierra").and_then(|v| v.as_bool()) == Some(true),
+@@ -431,6 +468,46 @@ pub fn execute(
+     Ok(())
+ }
+ 
++fn save_stone_air_inputs(runner: &CairoRunner, output_dir: &Utf8Path) -> Result<()> {
++    let trace_path = output_dir.join("trace.bin");
++    let memory_path = output_dir.join("memory.bin");
++    let public_input_path = output_dir.join("air_public_input.json");
++    let private_input_path = output_dir.join("air_private_input.json");
++
++    let relocated_trace = runner
++        .relocated_trace
++        .as_ref()
++        .context("Stone AIR input output requires a relocated execution trace")?;
++
++    let mut trace_file = BufWriter::new(fs::File::create(&trace_path)?);
++    write_encoded_trace(relocated_trace, &mut trace_file)
++        .context("failed to write Stone trace.bin")?;
++
++    let mut memory_file = BufWriter::new(fs::File::create(&memory_path)?);
++    write_encoded_memory(&runner.relocated_memory, &mut memory_file)
++        .context("failed to write Stone memory.bin")?;
++
++    fs::write(
++        public_input_path,
++        runner
++            .get_air_public_input()
++            .context("failed to build Stone AIR public input")?
++            .serialize_json()
++            .context("failed to serialize Stone AIR public input")?,
++    )?;
++
++    fs::write(
++        private_input_path,
++        runner
++            .get_air_private_input()
++            .to_serializable("trace.bin".to_string(), "memory.bin".to_string())
++            .serialize_json()
++            .context("failed to serialize Stone AIR private input")?,
++    )?;
++
++    Ok(())
++}
++
+ fn scarb_target_dir_from_env() -> Result<Utf8PathBuf> {
+     match env::var("SCARB_TARGET_DIR") {
+         Ok(value) => Ok(Utf8PathBuf::from(value)),
 diff --git a/utils/scarb-extensions-cli/src/execute.rs b/utils/scarb-extensions-cli/src/execute.rs
-index cd3fcaa..0362af4 100644
+index cd3fcaa..fd395cb 100644
 --- a/utils/scarb-extensions-cli/src/execute.rs
 +++ b/utils/scarb-extensions-cli/src/execute.rs
 @@ -2,7 +2,7 @@
@@ -83,7 +199,36 @@ index cd3fcaa..0362af4 100644
  use cairo_vm::Felt252;
  use cairo_vm::types::layout_name::LayoutName;
  use camino::Utf8PathBuf;
-@@ -228,11 +228,7 @@ pub enum OutputFormat {
+@@ -142,6 +142,10 @@ pub struct RunArgs {
+     #[arg(long, default_value_t = false)]
+     pub save_profiler_trace_data: bool,
+ 
++    /// Whether to save Stone prover AIR input files.
++    #[arg(long, default_value_t = false)]
++    pub save_stone_air_inputs: bool,
++
+     /// Override layout configuration.
+     #[arg(long, default_value_t = LayoutName::stwo_no_ecop)]
+     pub layout: LayoutName,
+@@ -156,6 +160,7 @@ impl ToArgs for RunArgs {
+             print_program_output,
+             print_resource_usage,
+             save_profiler_trace_data,
++            save_stone_air_inputs,
+             layout,
+         } = self;
+         let mut args = arguments.to_args();
+@@ -176,6 +181,9 @@ impl ToArgs for RunArgs {
+         if *save_profiler_trace_data {
+             args.push("--save-profiler-trace-data".to_string());
+         }
++        if *save_stone_air_inputs {
++            args.push("--save-stone-air-inputs".to_string());
++        }
+         args.push("--layout".to_string());
+         args.push(layout.to_string());
+         args
+@@ -228,11 +236,7 @@ pub enum OutputFormat {
  
  #[doc(hidden)]
  impl OutputFormat {

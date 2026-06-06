@@ -11,6 +11,10 @@ casm = false
 name = "pq_cairo_merkle_poseidon"
 function = "pq_cairo_merkle_poseidon::main"
 
+[[target.executable]]
+name = "pq_cairo_merkle_poseidon_l1_fact"
+function = "pq_cairo_merkle_poseidon::main_l1_fact"
+
 [cairo]
 enable-gas = false
 
