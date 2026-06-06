@@ -1,10 +1,12 @@
 # Post-Quantum Proof Testing Handoff
 
-Last updated: 2026-06-05
+Last updated: 2026-06-06
 
-This document is the working handoff for people and agents building the proof path for post-quantum private transfers in this repository. It records what has been verified locally, what has been verified through Atlantic/Sepolia fact registration, and what is still blocked before we can honestly claim end-to-end L1 verification of locally generated private-transfer proofs.
+This document is the working handoff for people and agents building the proof path for post-quantum private transfers in this repository. It records what has been verified locally, what has been verified through Atlantic/Sepolia fact registration, and what is still pending before we can honestly claim end-to-end L1 verification of locally generated private-transfer proofs.
 
 ## Current Position
+
+See `docs/atlantic-stwo-bug-log.md` for the current detailed Atlantic/Stwo bug inventory, query IDs, and workarounds.
 
 The local proving architecture is the right direction for privacy: user-sensitive witnesses must stay on the local device, and only public outputs or public proof artifacts should leave it. The current Cairo Merkle fixture proves and verifies locally through Stwo. The locally generated STARK proof is also accepted by the Cairo recursive verifier locally.
 
@@ -13,14 +15,15 @@ What we can say now:
 - Local Cairo Merkle execution works for the fixture root `823984307`.
 - Local Stwo proof generation and Rust verification work for the Cairo Merkle executable.
 - Local Cairo recursive verification of the generated Stwo proof works through `stwo_cairo_verifier_array`.
-- A plain public Cairo Merkle fixture can be submitted to Atlantic and checked through mocked Sepolia Satellite fact registration.
+- The full recursive verifier task PIE completes Atlantic trace generation on an `L` worker.
+- The recursive verifier fact is registered on mocked Sepolia and the Satellite registry returns `valid: true`.
 
 What we cannot say yet:
 
-- We cannot yet say the recursive verifier proof is accepted on Ethereum L1. Atlantic currently fails while running the generated stwo Cairo verifier artifact.
+- A real proof-backed Sepolia query is currently in `PROOF_GENERATION_AND_VERIFICATION`; do not claim real L1 completion until its final Satellite readback is recorded.
 - We should not describe the current proof artifact as production-private. Stwo Cairo is not zero-knowledge by default, so proof/public-memory leakage still needs a privacy audit or a hiding/recursive architecture.
 
-A careful external statement would be: the local post-quantum STARK proving path works, and the intended L1 route is to verify a public recursive-verifier statement through SHARP/Atlantic once the current Atlantic runner compatibility issue is resolved.
+A careful external statement is: local STARK proving and local recursive verification work; the full public recursive-verifier execution also passes Atlantic trace generation and mocked Sepolia fact registration. Real proof-backed Sepolia registration remains pending until the active query finishes.
 
 ## Privacy Rules
 
@@ -87,74 +90,47 @@ The output means:
 
 ## Current L1 And Atlantic Results
 
-Plain public Merkle fixture through mocked Atlantic/Sepolia fact registration:
+Correct Cairo task PIE trace generation:
+
+- Status: passes on a sufficiently large worker.
+- Public smoke PIE: `01KTDC9B4VDVVMCFF2KSGHASKE`.
+- Full recursive verifier, trace-only `L`: `01KTDCJHAK2QHS0TVAC5JF1VTJ`.
+- Full task PIE SHA-256: `74ee9e6665e18e25dd871f728b74e3ba98f46742fd053293d3903022bad2ee37`.
+- Atlantic metadata ends with verifier hash, output length `1`, and root `823984307`.
+- SHARP fact: `0x8a9e6885e08b0f85b16114cd889b05219485649a1988a73e377911bd2eac5e6f`.
+
+Mocked Sepolia recursive-verifier fact registration:
 
 - Status: passes.
-- Recent query: `01KTC3MD2EGNZD471B9K2HFJ45`.
-- Sepolia Satellite readback was valid for mocked fact `0x5c8a7cde7edd32c893a8e6d28cbaf1c1bb77faa56c9a06c6eaeedbe341f7eb8c`.
-- This proves the basic Cairo program -> Atlantic fact -> Satellite read path for a public fixture.
+- Query: `01KTDCP8TXTDXRSTEBZ5SFQ541`.
+- Sepolia Satellite: `0x396bF739f7b37D81f6CdD4571fDEF298150db88f`.
+- Readback: `valid: true`, `isMocked: true`.
 
-Large-input Atlantic diagnostic:
+Real proof-backed Sepolia registration:
 
-- Status: passes.
-- Query: `01KTC47696VNVG0YWRKRG3SXHM`.
-- The diagnostic echo program accepted the same 114,691-felt public proof input.
-- This suggests the failing recursive-verifier jobs are not failing merely because the input file is large.
+- Query: `01KTDCSWGYZAGANJZYY4E3MDGF`.
+- Current step at this update: `PROOF_GENERATION_AND_VERIFICATION`.
+- Proof job/transaction id: `01KTDCWKTKZWTPP135JDHPZGHK`.
+- Treat this as pending until the query is `DONE` and Satellite returns `valid: true` with `isMocked: false`.
 
-Recursive stwo Cairo verifier through Atlantic:
+Worker-size behavior for the 16,965,079-step task PIE:
 
-- Status: still blocked for full recursive verification.
-- Failure point: `TRACE_AND_METADATA_GENERATION`.
-- Error: `Error: Failed to run cairo1 rust vm: VirtualMachine(Unexpected)`.
+- `S` OOM-killed: `01KTDCF7WKFHZXSJZ7Q7BZCTZV`.
+- `M` OOM-killed: `01KTDCGVV981506JQVMGZT6RPR`.
+- `L` completed trace generation: `01KTDCJHAK2QHS0TVAC5JF1VTJ`.
 
-Important narrowed findings from 2026-06-05:
+Artifact-shape result:
 
-- Dev-profile single-target constant diagnostic passed through Atlantic and mocked Sepolia Satellite.
-  - Package: `atlantic_stwo_constant`
-  - Query: `01KTC87835DRKAT345A3E8PQGT`
-  - Fact: `0xd898f334df46089d17634b3085e1761bcc9d0d91e0b76103fc1fe2fbb8d44366`
-- Dev-profile single-target `CairoProof` deserialization diagnostic passed through Atlantic and mocked Sepolia Satellite.
-  - Package: `atlantic_stwo_deserialize`
-  - Query: `01KTC89PFHPMGNPFMBF9TXZFRK`
-  - Fact: `0xa3f75c7771ff38a98a45bc986fc4f3de01cf7f6a2fc2e742ab33c3dce204e663`
-- Dev-profile single-target full verifier still fails during trace generation, even before proof generation.
-  - Package: `atlantic_stwo_verify`
-  - `M`, trace-only: `01KTC8JACE479015Z18T0J3XZT`
-  - `L`, trace-only: `01KTC8QBVRZV9QEKK0C0CMZ46Q`
-
-Earlier failing diagnostics:
-
-- Proving-profile deserialize-only verifier diagnostics with `layout=auto` failed for all tested job sizes:
-  - `S`: `01KTC4W0V9Q8M6E1F41DTMZWHX`
-  - `M`: `01KTC4Z43TJ4NMH4QVVRXSHEHE`
-  - `L`: `01KTC52ADTPC24H0FJ0PFDQX17`
-- Full verifier retry with explicit `layout=all_cairo` failed: `01KTC63E3YGMY4EFASMAYZBXAS`.
-- Single executable Sierra artifacts also failed, including a tiny constant target. The successful diagnostics used normal package `*.sierra.json` artifacts built with the dev profile.
-
-Current interpretation:
-
-- This is not a raw input-size issue: the echo diagnostic and the stwo deserialization diagnostic both accepted the 114,691-felt proof input through Atlantic.
-- This is not just executable selection: single-target packages avoid multi-executable ambiguity.
-- This is not just declared job size: full verifier trace generation failed with both `M` and `L`.
-- The current blocker appears to be Atlantic's Cairo VM execution of the heavy `verify_cairo` path itself. The minimal support repro should include one passing deserialization query and one failing full-verifier trace query.
-
-Diagnostic commands:
-
-```sh
-cd packages/stwo-cairo/stwo_cairo_verifier
-source /home/yavor/.bashrc
-scarb build --package atlantic_stwo_constant --features poseidon252_verifier
-scarb build --package atlantic_stwo_deserialize --features poseidon252_verifier
-scarb build --package atlantic_stwo_verify --features poseidon252_verifier
-```
-
-Use `packages/hardhat/scripts/submitAtlanticMerkle.mjs --result TRACE_GENERATION` for trace-only debugging before asking Atlantic to prove/register a fact.
+- Scarb bootloader-target PIEs are nested bootloader executions and fail when Atlantic bootloads them again.
+- The working artifact executes the Cairo1 executable `Bootloader` entrypoint directly in VM execution mode and serializes that task execution as PIE.
+- Reproducible Scarb 2.18 patch: `patches/scarb-2.18.0-cairo1-task-pie.patch`.
+- Detailed failures and query IDs: `docs/atlantic-stwo-bug-log.md`.
 
 ## Atlantic Credits Interpretation
 
-This does not currently look like a credit/quota issue. The failed jobs are accepted by Atlantic, enter `TRACE_AND_METADATA_GENERATION`, and then fail with a Cairo VM runtime error.
+The observed failures were not credit/quota failures. Atlantic accepted them and returned concrete artifact-shape, Cairo VM, or `OOMKilled` errors. The current real query was also accepted and remains in `PROOF_GENERATION_AND_VERIFICATION`; no quota or payment error has been reported.
 
-Herodotus documentation says `declaredJobSize` affects the trace-generation machine and query cost. Their pricing page currently lists trace generation at 1 credit per started minute, proof generation by step-size bucket, and testnet proof verification as free. So repeated diagnostics can consume credits, but a credit problem should look like a quota/payment/submission rejection, not `VirtualMachine(Unexpected)` inside the Cairo runner.
+Herodotus documentation says `declaredJobSize` affects the trace-generation machine and query cost. Repeated diagnostics and real proof generation can consume credits even on testnet. Diagnose a credit problem only from an explicit quota, balance, payment, or submission rejection; do not infer one from a VM error, worker OOM, or a long-running healthy proof job.
 
 References:
 
@@ -176,9 +152,9 @@ For the next private-transfer program, use the Cairo Merkle fixture as a scaffol
 
 ## Recommended Next Steps
 
-1. Send Herodotus/Atlantic support the passing dev-profile deserialization query `01KTC89PFHPMGNPFMBF9TXZFRK` and failing full-verifier trace queries `01KTC8JACE479015Z18T0J3XZT` and `01KTC8QBVRZV9QEKK0C0CMZ46Q`.
-2. Ask whether Atlantic's Cairo1 Rust VM currently supports the generated `verify_cairo` path from `stwo_cairo_air`, and whether there are VM logs behind `VirtualMachine(Unexpected)`.
-3. If support cannot unblock it quickly, split `verify_cairo` into smaller trace-only diagnostics around claim verification, channel mixing, commitment unpacking, and FRI verification to isolate the exact failing subroutine.
-4. Keep developing private-transfer Cairo programs against the local proof workflow while treating L1 recursive verification as a currently blocked integration item.
-5. Replace the toy hash in transfer-relevant circuits with a production hash, then repeat local proving and local recursive verification before any remote submission.
-6. Add a privacy/leakage review before using any proof artifact from real transfer witnesses as public data.
+1. Record the terminal result and non-mocked Satellite readback for real query `01KTDCSWGYZAGANJZYY4E3MDGF`.
+2. Turn the tested Scarb patch into a maintained wrapper or upstream contribution instead of depending on a manually patched `/tmp` clone.
+3. Add a repository command that builds the task PIE and checks its SHA-256, builtin list, return segments, output length, verifier hash, and Merkle root before upload.
+4. Keep all transfer witness proving local. Submit only audited public recursive-verifier artifacts.
+5. Replace the toy transfer hash with the selected production hash and repeat local proof, local recursive verification, task-PIE trace generation, and L1 registration.
+6. Complete a proof/public-memory leakage review before using real private-transfer proof artifacts.

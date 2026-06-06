@@ -4,6 +4,8 @@ This document is the planned end-to-end path for proving a Cairo Merkle proof pr
 
 ## Current Decision
 
+See `docs/atlantic-stwo-bug-log.md` for the current detailed Atlantic/Stwo bug inventory, query IDs, and workarounds.
+
 For L1 verification, prefer the Cairo/SHARP/Atlantic path instead of custom local Stwo AIR proofs.
 
 Reason: SHARP already has an Ethereum verifier flow for Cairo program executions. A custom Stwo AIR proof is useful for local experiments, but it is not directly accepted by SHARP's deployed L1 verifier unless it is wrapped into the Cairo/SHARP pipeline.
@@ -42,50 +44,93 @@ The local stwo-cairo checkout needed two dev-utility fixes for Scarb executable 
 
 Important privacy boundary: local proving solves the remote-witness-upload problem, but stwo-cairo is not zero-knowledge by default. A direct public proof may reveal sampled execution data. A direct text search of the toy proof found the public root but not the obvious toy witness values; that is only a smoke check, not a privacy proof. Before private transfers, we need a formal proof-leakage audit or a recursive/hiding construction where only the intended public statement reaches chain or any third party.
 
-## Recursive Verifier Status
+## Recursive Verifier And Task PIE Status
 
-We can also verify the locally generated Merkle STARK proof with the Cairo recursive verifier on this machine. The current full verifier entrypoint is `stwo_cairo_verifier_array`, which accepts the serialized `CairoProof` as an input array and returns:
-
-1. the verifier program hash,
-2. the original Cairo program output length,
-3. the original Cairo Merkle root.
-
-Current local command:
-
-```sh
-source /home/yavor/.bashrc
-scarb --profile proving build --package stwo_cairo_verifier --features poseidon252_verifier
-scarb --profile proving execute --no-build \
-  --package stwo_cairo_verifier \
-  --features poseidon252_verifier \
-  --executable-name stwo_cairo_verifier_array \
-  --arguments-file /home/yavor/yavor/Coding/IC3-2026-Hackathon/pq-shielded-pool/packages/cairo-merkle/target/local-proofs/merkle-proof.poseidon.cairo-serde.array-args.json \
-  --layout all_cairo \
-  --print-program-output --print-resource-usage
-```
-
-Current local result with Scarb 2.18.0:
+The locally generated Blake-canonical Merkle STARK proof verifies with `stwo_cairo_verifier_array` and returns:
 
 ```text
 Program output:
 3
--1210432837679171818288727564040993199151119840003011262996498487688464571055
+1616635717182068608364703678641987474353866405618911243740290162179813754946
 1
 823984307
-steps: 17,582,452
 ```
 
-Atlantic does not yet accept the full recursive verifier, but the failure is now narrowed. The plain Merkle fixture still verifies through mocked Sepolia fact registration, and a diagnostic echo program with the same 114,691-element public proof input also verifies through Atlantic.
+A normal Scarb bootloader-target PIE is not suitable for Atlantic. It serializes the outer simple bootloader execution, so Atlantic attempts to bootload a bootloader again. The tested failures are recorded in `docs/atlantic-stwo-bug-log.md`.
 
-New single-target dev-profile diagnostics:
+The working artifact is a Cairo1 task PIE created by running the executable `Bootloader` entrypoint directly in Cairo VM execution mode. Scarb 2.18 does not expose this mode by default, so this repository contains a tested patch:
 
-- `atlantic_stwo_constant` passes through mocked Sepolia fact registration: `01KTC87835DRKAT345A3E8PQGT`.
-- `atlantic_stwo_deserialize` passes through mocked Sepolia fact registration and proves that Atlantic can deserialize the full 114,691-felt `CairoProof`: `01KTC89PFHPMGNPFMBF9TXZFRK`.
-- `atlantic_stwo_verify` still fails at trace generation with both `M` and `L` job sizes: `01KTC8JACE479015Z18T0J3XZT`, `01KTC8QBVRZV9QEKK0C0CMZ46Q`.
+- `patches/scarb-2.18.0-cairo1-task-pie.patch`
 
-Earlier proving-profile and executable-Sierra verifier artifacts failed with the same `VirtualMachine(Unexpected)` error. The current best interpretation is that normal dev-profile package Sierra artifacts are the compatible shape for Atlantic, while the remaining blocker is Atlantic's Cairo VM execution of the heavy `verify_cairo` path itself.
+Build the patched runner:
 
-This does not currently look like an Atlantic credit/quota issue. Herodotus documents testnet proof verification as free, while trace generation and proof generation can still consume credits by runtime/job size. Our failed recursive-verifier jobs were accepted and then failed inside Cairo VM trace generation, not rejected at submission for billing or quota reasons.
+```sh
+git clone --branch v2.18.0 --depth 1 https://github.com/software-mansion/scarb.git /tmp/scarb-2.18.0
+git -C /tmp/scarb-2.18.0 apply \
+  /home/yavor/yavor/Coding/IC3-2026-Hackathon/pq-shielded-pool/patches/scarb-2.18.0-cairo1-task-pie.patch
+cargo build --manifest-path /tmp/scarb-2.18.0/Cargo.toml -p scarb-execute
+```
+
+Generate the full task PIE locally from the public toy proof:
+
+```sh
+source /home/yavor/.bashrc
+cd packages/stwo-cairo/stwo_cairo_verifier
+SCARB_PROFILE=proving \
+SCARB_TARGET_DIR="$PWD/target" \
+/tmp/scarb-2.18.0/target/debug/scarb-execute \
+  --no-build \
+  --package stwo_cairo_verifier \
+  --features qm31_opcode \
+  --executable-name stwo_cairo_verifier_array \
+  --arguments-file /home/yavor/yavor/Coding/IC3-2026-Hackathon/pq-shielded-pool/packages/cairo-merkle/target/local-proofs/merkle-proof.blake-canonical.cairo-serde.array-args.json \
+  --layout all_cairo \
+  --target standalone \
+  --output cairo-pie \
+  --print-program-output
+```
+
+Tested artifact:
+
+- path: `packages/stwo-cairo/stwo_cairo_verifier/target/execute/stwo_cairo_verifier/execution35/cairo_pie.zip`
+- SHA-256: `74ee9e6665e18e25dd871f728b74e3ba98f46742fd053293d3903022bad2ee37`
+- compressed size: `79,776,557` bytes
+- steps: `16,965,079`
+- builtins: `output`, `range_check`, `bitwise`
+- return segments: indices `5` and `6`
+
+Submit the public task PIE from `packages/hardhat`:
+
+```sh
+cd packages/hardhat
+node scripts/submitAtlanticMerkle.mjs \
+  --mock --testnet --result TRACE_GENERATION \
+  --declared-job-size L --layout all_cairo \
+  --pie-file ../stwo-cairo/stwo_cairo_verifier/target/execute/stwo_cairo_verifier/execution35/cairo_pie.zip \
+  --allow-remote-witness-upload --no-satellite
+
+node scripts/submitAtlanticMerkle.mjs \
+  --mock --testnet --result PROOF_VERIFICATION_ON_L1 \
+  --declared-job-size L --layout all_cairo \
+  --pie-file ../stwo-cairo/stwo_cairo_verifier/target/execute/stwo_cairo_verifier/execution35/cairo_pie.zip \
+  --allow-remote-witness-upload
+```
+
+Use `--real` instead of `--mock` only when the team accepts the proof-generation credit cost.
+
+Atlantic results:
+
+- public smoke task PIE trace passed: `01KTDC9B4VDVVMCFF2KSGHASKE`
+- full task PIE `S` worker OOM: `01KTDCF7WKFHZXSJZ7Q7BZCTZV`
+- full task PIE `M` worker OOM: `01KTDCGVV981506JQVMGZT6RPR`
+- full task PIE `L` trace passed: `01KTDCJHAK2QHS0TVAC5JF1VTJ`
+- mocked Sepolia fact registration passed: `01KTDCP8TXTDXRSTEBZ5SFQ541`
+- mocked Satellite readback: `valid: true`
+- real proof-backed Sepolia query: `01KTDCSWGYZAGANJZYY4E3MDGF`, pending at `PROOF_GENERATION_AND_VERIFICATION` at this update
+
+Use `declaredJobSize=L` for this verifier. Smaller workers were OOM-killed.
+
+Privacy warning: a Cairo PIE contains execution memory. Only submit this public toy artifact. Do not generate and upload a PIE from private transfer witness execution unless its leakage model has been explicitly reviewed and accepted.
 
 ## What Gets Verified On L1
 
@@ -218,7 +263,7 @@ The integration script accepts `ATLANTIC_API_KEY` as an alias for `HCLOUD_API_KE
 
 For `mockFactHash=true`, this workflow does not require Sepolia ETH in our own wallet. Atlantic registers a mocked fact through its service account/API path, and our script only submits the query and reads the Satellite contract.
 
-For `mockFactHash=false` on Sepolia, our wallet still should not need Sepolia ETH unless we deploy or call our own contract. However, Atlantic may consume project credits for proof generation. Herodotus' pricing page currently says testnet proof verification is free, while proof generation is priced by job size; size `S` is listed as 70 credits, about `$0.70`.
+For `mockFactHash=false` on Sepolia, our wallet still should not need Sepolia ETH unless we deploy or call our own contract. Atlantic may consume project credits for proof generation even when testnet proof verification itself is free. The full recursive verifier requires an `L` trace worker, so do not estimate its cost from the `S` price. Check current Atlantic pricing and the project balance before starting another real job.
 
 Do not run `corepack yarn atlantic:merkle:real` unless the team is comfortable consuming Atlantic credits for the proof-generation part of the workflow.
 
@@ -335,7 +380,7 @@ The application contract should normally call the Satellite contract rather than
 
 ## Repository Task Status
 
-Completed locally:
+Completed locally and in public integration testing:
 
 1. Added a Cairo package for the Merkle proof program.
 2. Added a small fixture input file for the current toy hash.
@@ -345,10 +390,10 @@ Completed locally:
 
 Remaining:
 
-1. Set `HCLOUD_API_KEY` and `SEPOLIA_RPC_URL` in `packages/hardhat/.env` or the shell.
-2. Run `corepack yarn atlantic:merkle:mock` against Sepolia Satellite as the first external check.
-3. Run `corepack yarn atlantic:merkle:real` for real Sepolia L1 verification.
-4. Replace the toy hash with a Cairo-friendly production hash and keep the output/fact-hash interface stable.
+1. Record the final non-mocked Satellite readback for real query `01KTDCSWGYZAGANJZYY4E3MDGF`.
+2. Replace the temporary patched-Scarb build with a maintained repository command or upstreamed Scarb support.
+3. Replace the toy hash with a Cairo-friendly production hash and keep the output/fact-hash interface stable.
+4. Audit proof and Cairo PIE leakage before any private-transfer artifact is submitted remotely.
 
 ## Source References
 

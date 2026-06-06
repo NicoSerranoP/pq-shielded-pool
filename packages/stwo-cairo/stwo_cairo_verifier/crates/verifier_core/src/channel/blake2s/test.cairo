@@ -1,4 +1,3 @@
-use core::box::BoxImpl;
 use crate::channel::blake2s::{Blake2sChannel, ChannelTrait, check_leading_zeros};
 use crate::fields::qm31::qm31_const;
 use crate::vcs::blake2s_hasher::Blake2sHash;
@@ -12,7 +11,7 @@ fn test_mix_felts_with_1_felt() {
     // Tested against values produced from Rust code.
     // https://github.com/starkware-libs/stwo/blob/dev/crates/prover/src/core/channel/blake2s.rs
     assert_eq!(
-        channel.digest.hash.unbox(),
+        channel.digest.hash,
         [
             1586304710, 1167332849, 1688630032, 429142330, 4001363212, 2013799503, 180553907,
             2044853257,
@@ -29,7 +28,7 @@ fn test_mix_felts_with_2_felts() {
     // Tested against values produced from Rust code.
     // https://github.com/starkware-libs/stwo/blob/dev/crates/prover/src/core/channel/blake2s.rs
     assert_eq!(
-        channel.digest.hash.unbox(),
+        channel.digest.hash,
         [
             1835698174, 2969628929, 1758616107, 158303712, 3820231193, 179192886, 4063347398,
             3332297509,
@@ -50,7 +49,7 @@ fn test_mix_felts_with_3_felts() {
     // Tested against values produced from Rust code.
     // https://github.com/starkware-libs/stwo/blob/dev/crates/prover/src/core/channel/blake2s.rs
     assert_eq!(
-        channel.digest.hash.unbox(),
+        channel.digest.hash,
         [
             2116479765, 3227507660, 1737697798, 2518684651, 1068812914, 1858078313, 1722202885,
             2198022752,
@@ -74,7 +73,7 @@ fn test_mix_felts_with_4_felts() {
     // Tested against values produced from Rust code.
     // https://github.com/starkware-libs/stwo/blob/dev/crates/prover/src/core/channel/blake2s.rs
     assert_eq!(
-        channel.digest.hash.unbox(),
+        channel.digest.hash,
         [
             940149128, 1354728945, 2816315586, 1690943110, 210254904, 3746481728, 1339132640,
             3760408575,
@@ -99,7 +98,7 @@ fn test_mix_felts_with_5_felts() {
     // Tested against values produced from Rust code.
     // https://github.com/starkware-libs/stwo/blob/dev/crates/prover/src/core/channel/blake2s.rs
     assert_eq!(
-        channel.digest.hash.unbox(),
+        channel.digest.hash,
         [
             3425911356, 1462327982, 3241135902, 4212900065, 3145879221, 3413011910, 3946733048,
             4081152200,
@@ -116,7 +115,7 @@ fn test_mix_u64() {
     // Tested against values produced from Rust code.
     // https://github.com/starkware-libs/stwo/blob/dev/crates/prover/src/core/channel/blake2s.rs
     assert_eq!(
-        channel.digest.hash.unbox(),
+        channel.digest.hash,
         [
             0xc13f9ebc, 0x97884ed2, 0x59336d95, 0x24977332, 0xcdca6b9d, 0x74924d22, 0x4abae704,
             0xce6edc77,
@@ -126,7 +125,7 @@ fn test_mix_u64() {
 
 #[test]
 fn test_check_proof_of_work() {
-    let digest = Blake2sHash { hash: BoxImpl::new([0b1000, 0, 0, 0, 0, 0, 0, 0]) };
+    let digest = Blake2sHash { hash: [0b1000, 0, 0, 0, 0, 0, 0, 0] };
 
     let res = check_leading_zeros(digest, 3);
 
@@ -135,7 +134,7 @@ fn test_check_proof_of_work() {
 
 #[test]
 fn test_check_proof_of_work_with_invalid_n_bits() {
-    let digest = Blake2sHash { hash: BoxImpl::new([0b1000, 0, 0, 0, 0, 0, 0, 0]) };
+    let digest = Blake2sHash { hash: [0b1000, 0, 0, 0, 0, 0, 0, 0] };
 
     let res = check_leading_zeros(digest, 4);
 

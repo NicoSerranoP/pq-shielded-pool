@@ -28,6 +28,7 @@ members = [
     "crates/atlantic_stwo_blake_smoke",
     "crates/atlantic_stwo_blake_finalize64_smoke",
     "crates/atlantic_stwo_blake_hash16_smoke",
+    "crates/atlantic_stwo_blake_span_inline_smoke",
     "crates/atlantic_stwo_blake_hash17_smoke",
     "crates/atlantic_stwo_program_encode_blake",
     "crates/atlantic_stwo_claim",

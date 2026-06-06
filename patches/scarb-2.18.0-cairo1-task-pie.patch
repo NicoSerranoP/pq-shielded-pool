@@ -1,0 +1,98 @@
+diff --git a/extensions/scarb-execute/src/lib.rs b/extensions/scarb-execute/src/lib.rs
+index 2322825..780ff66 100644
+--- a/extensions/scarb-execute/src/lib.rs
++++ b/extensions/scarb-execute/src/lib.rs
+@@ -172,22 +172,40 @@ fn execute_standalone(
+ 
+     let (hints, string_to_hint) = build_hints_dict(&executable.program.hints);
+ 
++    let entrypoint_kind = if cairo_run_config.proof_mode {
++        EntryPointKind::Standalone
++    } else {
++        EntryPointKind::Bootloader
++    };
+     let entrypoint = executable
+         .entrypoints
+         .iter()
+-        .find(|e| matches!(e.kind, EntryPointKind::Standalone))
+-        .with_context(|| "no `Standalone` entrypoint found")?;
+-    let program = Program::new_for_proof(
+-        entrypoint.builtins.clone(),
+-        data,
+-        entrypoint.offset,
+-        entrypoint.offset + 4,
+-        hints,
+-        Default::default(),
+-        Default::default(),
+-        vec![],
+-        None,
+-    )
++        .find(|e| e.kind == entrypoint_kind)
++        .with_context(|| format!("no `{entrypoint_kind:?}` entrypoint found"))?;
++    let program = if cairo_run_config.proof_mode {
++        Program::new_for_proof(
++            entrypoint.builtins.clone(),
++            data,
++            entrypoint.offset,
++            entrypoint.offset + 4,
++            hints,
++            Default::default(),
++            Default::default(),
++            vec![],
++            None,
++        )
++    } else {
++        Program::new(
++            entrypoint.builtins.clone(),
++            data,
++            Some(entrypoint.offset),
++            hints,
++            Default::default(),
++            Default::default(),
++            vec![],
++            None,
++        )
++    }
+     .context("failed setting up program")?;
+ 
+     let cairo_hint_processor = CairoHintProcessor {
+@@ -237,10 +255,10 @@ fn build_cairo_run_config(
+         )?)
+     } else {
+         Ok(CairoRunConfig {
+-            allow_missing_builtins: Some(true),
++            allow_missing_builtins: Some(false),
+             layout: args.run.layout,
+-            proof_mode: true,
+-            disable_trace_padding: true,
++            proof_mode: !output.is_cairo_pie(),
++            disable_trace_padding: !output.is_cairo_pie(),
+             fill_holes: true,
+             secure_run: None,
+             relocate_mem,
+diff --git a/utils/scarb-extensions-cli/src/execute.rs b/utils/scarb-extensions-cli/src/execute.rs
+index cd3fcaa..0362af4 100644
+--- a/utils/scarb-extensions-cli/src/execute.rs
++++ b/utils/scarb-extensions-cli/src/execute.rs
+@@ -2,7 +2,7 @@
+ 
+ //! Extension CLI arguments datastructures.
+ 
+-use anyhow::{Result, ensure};
++use anyhow::Result;
+ use cairo_vm::Felt252;
+ use cairo_vm::types::layout_name::LayoutName;
+ use camino::Utf8PathBuf;
+@@ -228,11 +228,7 @@ pub enum OutputFormat {
+ 
+ #[doc(hidden)]
+ impl OutputFormat {
+-    pub fn validate(&self, target: &ExecutionTarget) -> Result<()> {
+-        ensure!(
+-            !(self.is_cairo_pie() && target.is_standalone()),
+-            "Cairo pie output format is not supported for standalone execution target"
+-        );
++    pub fn validate(&self, _target: &ExecutionTarget) -> Result<()> {
+         Ok(())
+     }
+     pub fn is_standard(&self) -> bool {

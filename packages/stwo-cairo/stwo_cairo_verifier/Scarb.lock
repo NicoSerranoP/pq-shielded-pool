@@ -37,6 +37,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "atlantic_stwo_blake_span_inline_smoke"
+version = "0.1.0"
+
+[[package]]
 name = "atlantic_stwo_channel_config"
 version = "0.1.0"
 dependencies = [
