@@ -467,17 +467,6 @@ contract ProvekitGroth16Verifier {
         _writeReversedAt(msgBuf, 64 + 32 * 0, input[0]); // CODEGEN: committed[0] = input[0]
         //<END_CODEGEN:COMMITTED_INDICES>
 
-        // Match the Rust verifier: when num_challenges <= 1, the prover and
-        // off-chain verifier use `derive_commitment_challenge` (a single
-        // keccak round via `hash_to_fr`); otherwise they use the counter
-        // chain `hash_to_fr_multi`. The on-chain split below mirrors that.
-        // N_CHALLENGE is a compile-time constant, so the dead branch is
-        // pruned.
-        uint256[N_CHALLENGE] memory out;
-        if (N_CHALLENGE == 1) {
-            out[0] = _hashToFr(msgBuf, DST_COMMITMENT);
-            return out;
-        }
         return _hashToFrMulti(msgBuf, DST_COMMITMENT);
     }
 
