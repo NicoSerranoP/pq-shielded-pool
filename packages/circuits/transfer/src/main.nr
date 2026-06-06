@@ -1,7 +1,5 @@
-mod lib;
-
-use crate::lib::{binary_merkle_root, poseidon2};
 use shared::constants::{MAX_NEW_NOTES, NOTE_COMMITMENT_DOMAIN, NULLIFIER_DOMAIN};
+use shared::merkle::{binary_merkle_root, poseidon2};
 use shared::types::{MerkleProof, Note};
 use std::hash::poseidon2_permutation;
 
