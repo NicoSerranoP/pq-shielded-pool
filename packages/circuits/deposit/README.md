@@ -8,6 +8,7 @@ To run the circuit, check the README in `packages/circuits/`
 ## Prover.toml file
 ```yaml
 commitment = "0x0f670b9202f04e3fdd3c9ec53fa427a34ab5a4891be0d257dff327237e34c4d7"
+value = 5
 
 [note]
 nonce = 0

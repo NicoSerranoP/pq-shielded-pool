@@ -11,17 +11,42 @@ contract VerifierTest is Test {
         verifier = new ProvekitGroth16Verifier();
     }
 
-    function trimRight(string memory s) internal pure returns (string memory) {
-        bytes memory b = bytes(s);
-        uint256 end = b.length;
-        while (end > 0 && (b[end - 1] == 0x0a || b[end - 1] == 0x0d || b[end - 1] == 0x20)) {
-            end--;
+    function parsePublicInputs(string memory raw) internal pure returns (uint256[2] memory inputs) {
+        bytes memory data = bytes(raw);
+        uint256 value;
+        uint256 inputCount;
+        bool parsingNumber;
+
+        for (uint256 i = 0; i < data.length; i++) {
+            bytes1 ch = data[i];
+
+            if (ch >= 0x30 && ch <= 0x39) {
+                value = value * 10 + (uint8(ch) - 48);
+                parsingNumber = true;
+                continue;
+            }
+
+            if (ch == 0x0a || ch == 0x0d || ch == 0x20 || ch == 0x09) {
+                if (parsingNumber) {
+                    require(inputCount < 2, "too many public inputs");
+                    inputs[inputCount] = value;
+                    inputCount++;
+                    value = 0;
+                    parsingNumber = false;
+                }
+                continue;
+            }
+
+            revert("invalid input char");
         }
-        bytes memory trimmed = new bytes(end);
-        for (uint256 i = 0; i < end; i++) {
-            trimmed[i] = b[i];
+
+        if (parsingNumber) {
+            require(inputCount < 2, "too many public inputs");
+            inputs[inputCount] = value;
+            inputCount++;
         }
-        return string(trimmed);
+
+        require(inputCount == 2, "expected 2 public inputs");
     }
 
     function test_deploys() public view {
@@ -33,10 +58,7 @@ contract VerifierTest is Test {
         bytes memory proofBytes = vm.parseBytes(proofHex);
 
         string memory inputsRaw = vm.readFile("../circuits/evm/inputs.txt");
-        uint256 pubInput = vm.parseUint(trimRight(inputsRaw));
-
-        uint256[1] memory inputs;
-        inputs[0] = pubInput;
+        uint256[2] memory inputs = parsePublicInputs(inputsRaw);
 
         verifier.verifyProof(proofBytes, inputs);
     }
