@@ -8,6 +8,11 @@ import { DeployFunction } from "hardhat-deploy/types";
  * @param hre HardhatRuntimeEnvironment object.
  */
 const deploySe2Token: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
+  if (process.env.SHIELDED_POOL_TOKEN_ADDRESS?.trim()) {
+    console.log("Skipping SE2Token deployment because SHIELDED_POOL_TOKEN_ADDRESS is set");
+    return;
+  }
+
   /*
     On localhost, the deployer account is the one that comes with Hardhat, which is already funded.
 
