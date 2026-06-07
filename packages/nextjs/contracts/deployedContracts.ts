@@ -2096,7 +2096,7 @@ const deployedContracts = {
       deployedOnBlock: 11005101,
     },
     ShieldedPool: {
-      address: "0x286CD3713B16Cfc13C58A344d54BeA8eCF16dA54",
+      address: "0x312D2afF3bAE86C7858Ef252e7684E28A4A95603",
       abi: [
         {
           inputs: [

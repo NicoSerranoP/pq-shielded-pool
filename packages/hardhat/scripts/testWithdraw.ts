@@ -51,7 +51,7 @@ function generateProof(
   const depth = siblings.length;
 
   const indicesArr = Array(MAX_DEPTH).fill(false);
-  const siblingsArr: (string | number)[] = Array(MAX_DEPTH).fill(0);
+  const siblingsArr: string[] = Array(MAX_DEPTH).fill('"0"');
 
   for (let i = 0; i < depth; i++) {
     indicesArr[i] = ((leafIndex >> i) & 1) === 1;
