@@ -1428,7 +1428,7 @@ const deployedContracts = {
   },
   11155111: {
     DepositVerifierWrapper: {
-      address: "0xa6BBE187e0dC3558672F439F978367Bb32b47D12",
+      address: "0xc38C1d10a7622259A12ED4078617eafD2Ff8B0b4",
       abi: [
         {
           inputs: [
@@ -1490,10 +1490,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11006214,
+      deployedOnBlock: 11008338,
     },
     MockTransferVerifier: {
-      address: "0xFEE37A10E55e785433091a723467236d3D4be356",
+      address: "0x5D3baBa91176be565790BF42694A8D2080C96405",
       abi: [
         {
           inputs: [
@@ -1557,10 +1557,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11005104,
+      deployedOnBlock: 11008339,
     },
     MockWithdrawVerifier: {
-      address: "0x22d1dE88671a7aD1c08f88c2028f795cD93e8096",
+      address: "0xc43D7DAF80Ff0C357790f4f73c8Be85A136cAEd1",
       abi: [
         {
           inputs: [
@@ -1629,7 +1629,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11005105,
+      deployedOnBlock: 11008340,
     },
     PoseidonT3: {
       address: "0x9Da2614cd8956918D723D5c85c3B90EC8C88A55a",
@@ -2051,15 +2051,10 @@ const deployedContracts = {
       deployedOnBlock: 11005101,
     },
     ShieldedPool: {
-      address: "0xe978f84EAf2d99d2A7ecc2980F3fCF9C259D8801",
+      address: "0xdeC6309f245D48E612a834b8Ee435c3669a6a8b0",
       abi: [
         {
           inputs: [
-            {
-              internalType: "contract IERC20",
-              name: "token_",
-              type: "address",
-            },
             {
               internalType: "contract IDepositVerifier",
               name: "depositVerifier_",
@@ -2085,30 +2080,8 @@ const deployedContracts = {
           type: "constructor",
         },
         {
-          inputs: [
-            {
-              internalType: "address",
-              name: "target",
-              type: "address",
-            },
-          ],
-          name: "AddressEmptyCode",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "account",
-              type: "address",
-            },
-          ],
-          name: "AddressInsufficientBalance",
-          type: "error",
-        },
-        {
           inputs: [],
-          name: "FailedInnerCall",
+          name: "EthTransferFailed",
           type: "error",
         },
         {
@@ -2154,11 +2127,6 @@ const deployedContracts = {
         {
           inputs: [],
           name: "InvalidRootHistoryIndex",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "InvalidToken",
           type: "error",
         },
         {
@@ -2231,22 +2199,6 @@ const deployedContracts = {
         {
           inputs: [],
           name: "ReentrancyGuardReentrantCall",
-          type: "error",
-        },
-        {
-          inputs: [
-            {
-              internalType: "address",
-              name: "token",
-              type: "address",
-            },
-          ],
-          name: "SafeERC20FailedOperation",
-          type: "error",
-        },
-        {
-          inputs: [],
-          name: "TokenTransferAmountMismatch",
           type: "error",
         },
         {
@@ -2572,7 +2524,7 @@ const deployedContracts = {
               type: "uint256",
             },
           ],
-          stateMutability: "nonpayable",
+          stateMutability: "payable",
           type: "function",
         },
         {
@@ -2701,19 +2653,6 @@ const deployedContracts = {
               internalType: "uint256",
               name: "",
               type: "uint256",
-            },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "token",
-          outputs: [
-            {
-              internalType: "contract IERC20",
-              name: "",
-              type: "address",
             },
           ],
           stateMutability: "view",

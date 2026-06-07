@@ -75,8 +75,6 @@ async function main() {
 
   const poolDep = await deployments.get("ShieldedPool");
   const pool = await ethers.getContractAt("ShieldedPool", poolDep.address);
-  const tokenDep = await deployments.get("SE2Token");
-  const token = await ethers.getContractAt("SE2Token", tokenDep.address);
 
   const amount = parseInt(process.env.AMOUNT ?? "5");
   const assetId = 1;
@@ -89,14 +87,8 @@ async function main() {
 
   const proof = generateProof(amount, ownerField, nonce, assetId, commitment);
 
-  console.log("Minting tokens...");
-  await (await token.mint(signer.address, ethers.parseEther("1000"), { gasLimit: 100000 })).wait();
-
-  console.log("Approving...");
-  await (await token.approve(poolDep.address, ethers.parseEther("1000"), { gasLimit: 100000 })).wait();
-
   console.log("Depositing...");
-  const tx = await pool.deposit(amount, assetId, BigInt(commitment), proof, { gasLimit: 3_000_000 });
+  const tx = await pool.deposit(amount, assetId, BigInt(commitment), proof, { value: amount, gasLimit: 3_000_000 });
   const receipt = await tx.wait();
 
   console.log("Deposit successful! tx:", receipt?.hash);

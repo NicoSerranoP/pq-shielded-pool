@@ -3,9 +3,7 @@ import { DeployFunction } from "hardhat-deploy/types";
 
 const deployShieldedPool: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await hre.getNamedAccounts();
-  const { deploy, get, save } = hre.deployments;
-
-  const se2Token = await get("SE2Token");
+  const { deploy, save } = hre.deployments;
 
   // Deploy the raw Groth16 verifier generated from the deposit circuit
   const groth16Verifier = await deploy("ProvekitGroth16Verifier", {
@@ -56,7 +54,6 @@ const deployShieldedPool: DeployFunction = async function (hre: HardhatRuntimeEn
   });
 
   const constructorArgs = [
-    se2Token.address,
     depositVerifier.address,
     transferVerifier.address,
     withdrawVerifier.address,
@@ -86,4 +83,4 @@ const deployShieldedPool: DeployFunction = async function (hre: HardhatRuntimeEn
 export default deployShieldedPool;
 
 deployShieldedPool.tags = ["ShieldedPool"];
-deployShieldedPool.dependencies = ["SE2Token"];
+deployShieldedPool.dependencies = [];

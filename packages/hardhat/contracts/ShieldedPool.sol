@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { InternalLeanIMT, LeanIMTData } from "@zk-kit/lean-imt.sol/InternalLeanIMT.sol";
 import { BucketedNullifierSet } from "./BucketedNullifierSet.sol";
@@ -41,11 +39,9 @@ interface IWithdrawVerifier {
 /// @notice Shielded pool using a Lean Incremental Merkle Tree.
 contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
     using InternalLeanIMT for LeanIMTData;
-    using SafeERC20 for IERC20;
 
     uint256 public constant ROOT_HISTORY_SIZE = 100;
 
-    IERC20 public immutable token;
     IDepositVerifier public immutable depositVerifier;
     ITransferVerifier public immutable transferVerifier;
     IWithdrawVerifier public immutable withdrawVerifier;
@@ -56,7 +52,6 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
     uint256[ROOT_HISTORY_SIZE] private _rootHistory;
     uint256 private _rootHistoryIndex;
 
-    error InvalidToken();
     error InvalidDepositVerifier();
     error InvalidTransferVerifier();
     error InvalidWithdrawVerifier();
@@ -72,7 +67,7 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
     error NullifierAlreadySpent(uint256 nullifier);
     error InvalidOutputCommitment();
     error InvalidRootHistoryIndex();
-    error TokenTransferAmountMismatch();
+    error EthTransferFailed();
 
     event Deposit(
         address indexed depositor,
@@ -94,19 +89,16 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
     event Withdrawal(uint256 indexed root, uint256 indexed inputNullifier, address indexed recipient, uint256 amount);
 
     constructor(
-        IERC20 token_,
         IDepositVerifier depositVerifier_,
         ITransferVerifier transferVerifier_,
         IWithdrawVerifier withdrawVerifier_,
         uint256 assetId_
     ) {
-        if (address(token_) == address(0)) revert InvalidToken();
         if (address(depositVerifier_) == address(0)) revert InvalidDepositVerifier();
         if (address(transferVerifier_) == address(0)) revert InvalidTransferVerifier();
         if (address(withdrawVerifier_) == address(0)) revert InvalidWithdrawVerifier();
         if (assetId_ == 0) revert InvalidAssetId();
 
-        token = token_;
         depositVerifier = depositVerifier_;
         transferVerifier = transferVerifier_;
         withdrawVerifier = withdrawVerifier_;
@@ -118,14 +110,11 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
         uint256 depositAssetId,
         uint256 commitment,
         bytes calldata zkProof
-    ) external nonReentrant returns (uint256 leafIndex, uint256 newRoot) {
+    ) external payable nonReentrant returns (uint256 leafIndex, uint256 newRoot) {
         if (amount == 0) revert InvalidAmount();
+        if (msg.value != amount) revert InvalidAmount();
         if (depositAssetId != assetId) revert InvalidAssetId();
         if (!depositVerifier.verifyDepositProof(amount, depositAssetId, commitment, zkProof)) revert InvalidDepositProof();
-
-        uint256 balanceBefore = token.balanceOf(address(this));
-        token.safeTransferFrom(msg.sender, address(this), amount);
-        if (token.balanceOf(address(this)) - balanceBefore != amount) revert TokenTransferAmountMismatch();
 
         leafIndex = _commitmentTree.size;
         newRoot = _commitmentTree._insert(commitment);
@@ -168,7 +157,8 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
         if (!withdrawVerifier.verifyWithdrawProof(root, inputNullifier, recipient, amount, zkProof)) revert InvalidWithdrawProof();
 
         _spendNullifier(inputNullifier);
-        token.safeTransfer(recipient, amount);
+        (bool ok,) = recipient.call{value: amount}("");
+        if (!ok) revert EthTransferFailed();
 
         emit Withdrawal(root, inputNullifier, recipient, amount);
     }
