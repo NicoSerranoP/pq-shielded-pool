@@ -1,8 +1,8 @@
-commitment = "0x173d6c145559d63c6fc101dc131fbb9021a2a021f96117d7061e1d194fbab625"
-value = 9
+commitment = "0x2d9bab4f4e7f5498d56e6ddd3bde435657b804f44ae4b8a670876a8cf8e1fd8e"
+value = 3
 
 [note]
 asset  = 1
-nonce = 2
+nonce = 3
 owner = "1390849295786071768276380950238675083608645509734"
-value = 9
+value = 3

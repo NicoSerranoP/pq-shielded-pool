@@ -78,9 +78,9 @@ async function main() {
   const tokenDep = await deployments.get("SE2Token");
   const token = await ethers.getContractAt("SE2Token", tokenDep.address);
 
-  const amount = 9;
+  const amount = parseInt(process.env.AMOUNT ?? "5");
   const assetId = 1;
-  const nonce = 2; //TODO: make this incremental, needs to be unique always
+  const nonce = parseInt(process.env.NONCE ?? "0");
   const ownerField = BigInt(signer.address).toString();
 
   console.log("Computing commitment...");
