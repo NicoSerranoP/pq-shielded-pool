@@ -21,9 +21,18 @@ const deployShieldedPool: DeployFunction = async function (hre: HardhatRuntimeEn
     autoMine: true,
   });
 
-  // Deploy mock verifier for transfer (circuit not ready yet)
-  const transferVerifier = await deploy("MockTransferVerifier", {
+  // Deploy Groth16 verifier for transfer circuit
+  const transferGroth16Verifier = await deploy("TransferProvekitGroth16Verifier", {
+    contract: "contracts/TransferVerifier.sol:ProvekitGroth16Verifier",
     from: deployer,
+    log: true,
+    autoMine: true,
+  });
+
+  // Deploy the wrapper that implements ITransferVerifier
+  const transferVerifier = await deploy("TransferVerifierWrapper", {
+    from: deployer,
+    args: [transferGroth16Verifier.address],
     log: true,
     autoMine: true,
   });
