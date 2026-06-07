@@ -1,13 +1,13 @@
-published_root = "0x210531727a1da44d402490a3d3ca22ed281b10654665085a3f46e07c072d95c7"
+published_root = "0xaa86bf4ccb8262c6961ea0a9b41a071155c210151bdfb331586f0aeb5706b5a"
 value = 5
 
 [merkle_proof]
-indices = [true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
+indices = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
 length = 2
-siblings = ["0x2a7cec1480256063ea182a8bf73400768305bf001a0dd0d5fa6762554b846321", "0x0f809c6aa3714627feed4ceb20cb47eb16886655020e8ffedbcc181db4e14538", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+siblings = ["0x2a7cec1480256063ea182a8bf73400768305bf001a0dd0d5fa6762554b846321", "0x0f809c6aa3714627feed4ceb20cb47eb16886655020e8ffedbcc181db4e14538", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
 
 [note]
 asset = 1
-nonce = 1
+nonce = 5
 owner = "419779223150668528406796704116317490430959102897"
 value = 5
