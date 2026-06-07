@@ -32,9 +32,19 @@ source ~/.bashrc
 provekit-cli --help
 ```
 
+## Current EVM proof-export status
+
+The checked-in `deposit`, `transfer`, and `withdraw` EVM fixtures are Groth16-wrapped artifacts:
+
+- `packages/circuits/<ACTION_CIRCUIT>/Verifier.sol`
+- `packages/circuits/<ACTION_CIRCUIT>/evm/proof.hex`
+- `packages/circuits/<ACTION_CIRCUIT>/evm/inputs.txt`
+
+The currently installed local `provekit-cli` exposes `prepare`, `prove`, and `verify`, but does not expose `export-solidity` or `export-evm-proof`. That means it can regenerate `.pkp`, `.pkv`, and `.np` files, but cannot currently refresh the Solidity verifier or 384-byte EVM proof fixture. Use the checked-in EVM artifacts for Hardhat and testnet execution until a Provekit build with those export subcommands is installed.
+
 ## Prepare, prove and verify the circuits (only Provekit)
 ```bash
-cd circuits/<ACTION_CIRCUIT>
+cd packages/circuits/<ACTION_CIRCUIT>
 
 provekit-cli prepare
 provekit-cli prove
@@ -44,9 +54,10 @@ provekit-cli verify
 
 ## Prepare, prove and verify the circuits (Provekit wrapped in Groth16)
 ```bash
+cd packages/circuits
 nargo build
 
-cd circuits/<ACTION_CIRCUIT>
+cd <ACTION_CIRCUIT>
 
 provekit-cli prepare ../target/<ACTION_CIRCUIT>.json --backend groth16
 

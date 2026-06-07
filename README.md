@@ -4,6 +4,65 @@
 
 Please read the [AGENTS.md](/AGENTS.md) file for information about the Post Quantum Shielded Pool project, its architecture, and design choices. We should keep that file as the single source of truth for team mates and AI agents working on this project.
 
+## ShieldedPool local runbook
+
+Run the local chain, deploy the contracts, and exercise the pool with the exported Groth16 EVM proof artifacts:
+
+```bash
+yarn chain
+```
+
+In a second terminal:
+
+```bash
+yarn deploy
+yarn smoke:shielded-pool
+```
+
+The smoke script uses `packages/circuits/{deposit,transfer,withdraw}/evm/proof.hex` and `inputs.txt`. It verifies:
+
+- `deposit` transfers ERC20 tokens into `ShieldedPool`, verifies the deposit proof, and inserts the commitment.
+- `transfer` verifies the transfer proof, spends the input nullifier, and inserts two output commitments.
+- `withdraw` verifies the withdrawal proof, spends the nullifier, and releases ERC20 tokens to a public recipient.
+
+The current fixture set proves transfer and withdraw from the same deposited root, so the smoke script uses one fresh pool for deposit-to-transfer and one fresh pool for deposit-to-withdraw. Contract-level tests cover the revert paths, root history, double-spend checks, malformed proofs, and verifier input validation:
+
+```bash
+yarn hardhat:test
+```
+
+Proof bytes are submitted as transaction calldata. They are public in the transaction input, but `ShieldedPool` does not store or emit them; it only stores protocol state such as commitments, roots, nullifiers, and token balances.
+
+## ShieldedPool testnet deployment
+
+The deploy scripts support both a demo token and an existing ERC20:
+
+- If `SHIELDED_POOL_TOKEN_ADDRESS` is unset, `yarn deploy --network <network>` deploys `SE2Token` and uses its address as the default asset id.
+- If `SHIELDED_POOL_TOKEN_ADDRESS` is set, `SE2Token` deployment is skipped and `ShieldedPool` is configured with that ERC20.
+- `SHIELDED_POOL_ASSET_ID` is optional. If unset, it defaults to the token address interpreted as a uint256. If set, use a non-zero decimal or `0x`-prefixed integer.
+
+Typical Sepolia deployment:
+
+```bash
+yarn account:import
+export ALCHEMY_API_KEY=<alchemy-key>
+export ETHERSCAN_V2_API_KEY=<etherscan-v2-key>
+export SHIELDED_POOL_TOKEN_ADDRESS=<erc20-token-address>
+export SHIELDED_POOL_ASSET_ID=<asset-id>
+yarn deploy --network sepolia
+yarn verify --network sepolia
+```
+
+Before broadcasting to a testnet, run:
+
+```bash
+yarn hardhat:check-types
+yarn hardhat:lint
+yarn hardhat:test
+```
+
+The checked-in Solidity verifiers and EVM proof fixtures are Groth16-wrapped artifacts. The currently installed `provekit-cli` can produce `.np` proofs with `prepare`, `prove`, and `verify`, but it does not expose the `export-solidity` or `export-evm-proof` subcommands needed to refresh `Verifier.sol` and `evm/proof.hex` from a fresh proof. Until that exporter is available in the local Provekit build, local and testnet EVM execution should use the committed Groth16 EVM artifacts.
+
 ## About Scaffold-ETH 2
 
 🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on the Ethereum blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
