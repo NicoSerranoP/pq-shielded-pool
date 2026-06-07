@@ -111,6 +111,9 @@ async function main() {
   const receiverAddress = process.env.RECEIVER_ADDRESS;
   if (!receiverAddress) throw new Error("RECEIVER_ADDRESS env var required");
   const receiverNonce = parseInt(process.env.RECEIVER_NONCE ?? "1");
+  const transferAmount = parseInt(process.env.TRANSFER_AMOUNT ?? String(amount));
+  if (transferAmount > amount) throw new Error("TRANSFER_AMOUNT cannot exceed AMOUNT");
+  const changeAmount = amount - transferAmount;
   // changeNonce must produce a commitment never seen before in the tree.
   // We defer setting it until after we know treeSize (see below).
 
@@ -122,14 +125,14 @@ async function main() {
   console.log("Nullifier:", nullifier);
 
   console.log("Computing Receiver's commitment...");
-  const { commitment: receiverCommitment } = computeNoteValues(amount, receiverField, receiverNonce, assetId);
+  const { commitment: receiverCommitment } = computeNoteValues(transferAmount, receiverField, receiverNonce, assetId);
   console.log("Receiver's commitment:", receiverCommitment);
 
   const treeSize = Number(await pool.treeSize());
   const treeDepth = Number(await pool.treeDepth());
   // Default changeNonce = treeSize + 10000, guaranteed unique (tree only grows).
   const changeNonce = parseInt(process.env.CHANGE_NONCE ?? String(treeSize + 10_000));
-  const { commitment: changeCommitment } = computeNoteValues(0, senderField, changeNonce, assetId);
+  const { commitment: changeCommitment } = computeNoteValues(changeAmount, senderField, changeNonce, assetId);
 
   const root = await pool.currentRoot();
   const rootHex = "0x" + root.toString(16);
@@ -179,8 +182,8 @@ async function main() {
   const proof = generateProof(
     { value: amount, owner: senderField, nonce, asset: assetId },
     [
-      { value: amount, owner: receiverField, nonce: receiverNonce, asset: assetId },
-      { value: 0, owner: senderField, nonce: changeNonce, asset: assetId },
+      { value: transferAmount, owner: receiverField, nonce: receiverNonce, asset: assetId },
+      { value: changeAmount, owner: senderField, nonce: changeNonce, asset: assetId },
     ],
     nullifier,
     [receiverCommitment, changeCommitment],
@@ -202,7 +205,7 @@ async function main() {
 
   console.log("Transfer successful! tx:", receipt?.hash);
   console.log("\nReceiver's note (share with recipient for withdrawal):");
-  console.log(`  AMOUNT=${amount}`);
+  console.log(`  AMOUNT=${transferAmount}`);
   console.log(`  NONCE=${receiverNonce}`);
   console.log(`  OWNER=${receiverAddress}`);
 }

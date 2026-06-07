@@ -1,26 +1,26 @@
-new_notes_commitments = ["0x11863d2ce181370ecb91776d0ff4e88c449f99cac77021967cdd7ae085c67472", "0x0859c45f775693d45e70abe458aad37bddaa149135606a9eac370cd42720d9ed"]
-nullifier = "0x2b7c04f4e9f5e5d0e602728940e740867620dde6e4cf812dbce1476a1462e32e"
-published_root = "0x1ab9610cdd72cce15663d4f472f194e0712fbc3a2bc458792586cc5a68307542"
+new_notes_commitments = ["0x17c6d5d3fdc8092ce3593c0109ac98ea0f3e045b31a18b35cc0ffb60c0aa2f7d", "0x0fae62a97db4faadc2c0178b7fef1e5b2e5bf5d2ed5eeb5967e9085b13260411"]
+nullifier = "0x0d4cdc9afdfa1233e07cbe9c696d2a466bc4ce3707e426eba62639b02787a5ed"
+published_root = "0x133cab2a277778495f88f60da39ccb9ce35952da6a1cf1a8c26aff4f257ec2c5"
 
 [merkle_proof]
-indices = [false, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
+indices = [true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
 length = 3
-siblings = ["0x0c381a4c8949bc1bd4fb7b610f2355fbd9aa6da0ae78e401ba1d8cbcfce04158", "0x26a989be436b20f401e2715a89c16ed33d74aaac84ae5ec134508e44f6ef34ab", "0x2843fc19ccdf9f766b7a9dbf42bac65c760c2c7b1fa2f1daab6c63d745390ae0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+siblings = ["0x07f4dd284215eaa7306b8b6a16acdeb223dc9042a6636515bebcaf66de988b5e", "0x2a307b19b51b52f8e32972e2baaedf85e19c173fde4cef6e4510b03a6a386149", "0x21cc61a9da5a077b948d78207ef29693b73856230396999d6e825c0636a0be19", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
 
 [[new_notes]]
 asset = 1
-nonce = 13
-owner = "583731515734809539438924236361399208983079337602"
-value = 5
-
-[[new_notes]]
-asset = 1
-nonce = 10008
+nonce = 70
 owner = "419779223150668528406796704116317490430959102897"
-value = 0
+value = 4
+
+[[new_notes]]
+asset = 1
+nonce = 10023
+owner = "419779223150668528406796704116317490430959102897"
+value = 6
 
 [old_note]
 asset = 1
-nonce = 9
+nonce = 69
 owner = "419779223150668528406796704116317490430959102897"
-value = 5
+value = 10
