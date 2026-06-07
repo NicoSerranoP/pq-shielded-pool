@@ -4,6 +4,1429 @@
  */
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
-const deployedContracts = {} as const;
+const deployedContracts = {
+  11155111: {
+    DepositVerifier: {
+      address: "0x6cffcBb7fB30b3f9F9e5E79795C49c7aD53831e7",
+      abi: [
+        {
+          inputs: [],
+          name: "ProofInvalid",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ProofLengthInvalid",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ProofPointAtInfinity",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "PublicInputNotInField",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "commitment",
+              type: "uint256",
+            },
+            {
+              internalType: "bytes",
+              name: "proof",
+              type: "bytes",
+            },
+          ],
+          name: "verifyDepositProof",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "bytes",
+              name: "proof",
+              type: "bytes",
+            },
+            {
+              internalType: "uint256[2]",
+              name: "input",
+              type: "uint256[2]",
+            },
+          ],
+          name: "verifyProof",
+          outputs: [],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 11008206,
+    },
+    PoseidonT3: {
+      address: "0x714f94996091d0feC71FDAea5839EE93a5dd84d1",
+      abi: [
+        {
+          inputs: [
+            {
+              internalType: "uint256[2]",
+              name: "",
+              type: "uint256[2]",
+            },
+          ],
+          name: "hash",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "pure",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 11008235,
+    },
+    SE2Token: {
+      address: "0x8EB3e17869F3A404C56C031ef81C6aFa1DAbf60D",
+      abi: [
+        {
+          inputs: [],
+          stateMutability: "nonpayable",
+          type: "constructor",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "spender",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "allowance",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "needed",
+              type: "uint256",
+            },
+          ],
+          name: "ERC20InsufficientAllowance",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "sender",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "balance",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "needed",
+              type: "uint256",
+            },
+          ],
+          name: "ERC20InsufficientBalance",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "approver",
+              type: "address",
+            },
+          ],
+          name: "ERC20InvalidApprover",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "receiver",
+              type: "address",
+            },
+          ],
+          name: "ERC20InvalidReceiver",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "sender",
+              type: "address",
+            },
+          ],
+          name: "ERC20InvalidSender",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "spender",
+              type: "address",
+            },
+          ],
+          name: "ERC20InvalidSpender",
+          type: "error",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
+              name: "owner",
+              type: "address",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "spender",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "value",
+              type: "uint256",
+            },
+          ],
+          name: "Approval",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
+              name: "from",
+              type: "address",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "to",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "value",
+              type: "uint256",
+            },
+          ],
+          name: "Transfer",
+          type: "event",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "owner",
+              type: "address",
+            },
+            {
+              internalType: "address",
+              name: "spender",
+              type: "address",
+            },
+          ],
+          name: "allowance",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "spender",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "value",
+              type: "uint256",
+            },
+          ],
+          name: "approve",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "account",
+              type: "address",
+            },
+          ],
+          name: "balanceOf",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "decimals",
+          outputs: [
+            {
+              internalType: "uint8",
+              name: "",
+              type: "uint8",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "to",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          name: "mint",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "name",
+          outputs: [
+            {
+              internalType: "string",
+              name: "",
+              type: "string",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "symbol",
+          outputs: [
+            {
+              internalType: "string",
+              name: "",
+              type: "string",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "totalSupply",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "to",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "value",
+              type: "uint256",
+            },
+          ],
+          name: "transfer",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "from",
+              type: "address",
+            },
+            {
+              internalType: "address",
+              name: "to",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "value",
+              type: "uint256",
+            },
+          ],
+          name: "transferFrom",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {
+        allowance: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        approve: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        balanceOf: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        decimals: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        name: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        symbol: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        totalSupply: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        transfer: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        transferFrom: "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+      },
+      deployedOnBlock: 11008205,
+    },
+    ShieldedPool: {
+      address: "0x099c1e42700C3040A7B3dD0C77912EF09581e5F0",
+      abi: [
+        {
+          inputs: [
+            {
+              internalType: "contract IERC20",
+              name: "token_",
+              type: "address",
+            },
+            {
+              internalType: "contract IDepositVerifier",
+              name: "depositVerifier_",
+              type: "address",
+            },
+            {
+              internalType: "contract ITransferVerifier",
+              name: "transferVerifier_",
+              type: "address",
+            },
+            {
+              internalType: "contract IWithdrawVerifier",
+              name: "withdrawVerifier_",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "assetId_",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "constructor",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "target",
+              type: "address",
+            },
+          ],
+          name: "AddressEmptyCode",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "account",
+              type: "address",
+            },
+          ],
+          name: "AddressInsufficientBalance",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "FailedInnerCall",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidAmount",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidAssetId",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidDepositProof",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidDepositVerifier",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidLinkedListState",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidNullifier",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidOutputCommitment",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidRecipient",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidRootHistoryIndex",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidToken",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidTransferProof",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidTransferVerifier",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidWithdrawProof",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "InvalidWithdrawVerifier",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "LeafAlreadyExists",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "LeafCannotBeZero",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "LeafDoesNotExist",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "LeafGreaterThanSnarkScalarField",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NoOutputCommitments",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "nullifier",
+              type: "uint256",
+            },
+          ],
+          name: "NullifierAlreadyInserted",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "nullifier",
+              type: "uint256",
+            },
+          ],
+          name: "NullifierAlreadySpent",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ReentrancyGuardReentrantCall",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "token",
+              type: "address",
+            },
+          ],
+          name: "SafeERC20FailedOperation",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "TokenTransferAmountMismatch",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "UnknownMerkleRoot",
+          type: "error",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
+              name: "depositor",
+              type: "address",
+            },
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "assetId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "leafIndex",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "commitment",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "root",
+              type: "uint256",
+            },
+          ],
+          name: "Deposit",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "nullifier",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "bucketId",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "uint64",
+              name: "nodeId",
+              type: "uint64",
+            },
+          ],
+          name: "NullifierPushed",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "oldRoot",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "firstLeafIndex",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "newRoot",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "inputNullifier",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256[]",
+              name: "outputCommitments",
+              type: "uint256[]",
+            },
+          ],
+          name: "Transfer",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "root",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "uint256",
+              name: "inputNullifier",
+              type: "uint256",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "recipient",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          name: "Withdrawal",
+          type: "event",
+        },
+        {
+          inputs: [],
+          name: "LL_OBJ_SIZE",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "NUM_BITS_NULLIFIER_BUCKET",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "ROOT_HISTORY_SIZE",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "assetId",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "bucketId",
+              type: "uint256",
+            },
+          ],
+          name: "bucketInfo",
+          outputs: [
+            {
+              internalType: "uint64",
+              name: "head",
+              type: "uint64",
+            },
+            {
+              internalType: "uint64",
+              name: "tail",
+              type: "uint64",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "nullifier",
+              type: "uint256",
+            },
+          ],
+          name: "bucketOf",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "pure",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "commitment",
+              type: "uint256",
+            },
+          ],
+          name: "commitmentIndex",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "nullifier",
+              type: "uint256",
+            },
+          ],
+          name: "contains",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "currentRoot",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "depositAssetId",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "commitment",
+              type: "uint256",
+            },
+            {
+              internalType: "bytes",
+              name: "zkProof",
+              type: "bytes",
+            },
+          ],
+          name: "deposit",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "leafIndex",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "newRoot",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "depositVerifier",
+          outputs: [
+            {
+              internalType: "contract IDepositVerifier",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "commitment",
+              type: "uint256",
+            },
+          ],
+          name: "hasCommitment",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "root",
+              type: "uint256",
+            },
+          ],
+          name: "isKnownRoot",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "nullifier",
+              type: "uint256",
+            },
+          ],
+          name: "isNullifierSpent",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint64",
+              name: "nodeId",
+              type: "uint64",
+            },
+          ],
+          name: "nodeInfo",
+          outputs: [
+            {
+              internalType: "uint64",
+              name: "next",
+              type: "uint64",
+            },
+            {
+              internalType: "uint8",
+              name: "len",
+              type: "uint8",
+            },
+            {
+              internalType: "uint256[8]",
+              name: "values",
+              type: "uint256[8]",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "index",
+              type: "uint256",
+            },
+          ],
+          name: "rootHistory",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "rootHistoryIndex",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "token",
+          outputs: [
+            {
+              internalType: "contract IERC20",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "root",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "inputNullifier",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256[]",
+              name: "outputCommitments",
+              type: "uint256[]",
+            },
+            {
+              internalType: "bytes",
+              name: "zkProof",
+              type: "bytes",
+            },
+          ],
+          name: "transfer",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "firstLeafIndex",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "newRoot",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "transferVerifier",
+          outputs: [
+            {
+              internalType: "contract ITransferVerifier",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "treeDepth",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "treeSize",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "root",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "inputNullifier",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "recipient",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+            {
+              internalType: "bytes",
+              name: "zkProof",
+              type: "bytes",
+            },
+          ],
+          name: "withdraw",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "withdrawVerifier",
+          outputs: [
+            {
+              internalType: "contract IWithdrawVerifier",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {
+        LL_OBJ_SIZE: "contracts/BucketedNullifierSet.sol",
+        NUM_BITS_NULLIFIER_BUCKET: "contracts/BucketedNullifierSet.sol",
+        bucketInfo: "contracts/BucketedNullifierSet.sol",
+        bucketOf: "contracts/BucketedNullifierSet.sol",
+        contains: "contracts/BucketedNullifierSet.sol",
+        nodeInfo: "contracts/BucketedNullifierSet.sol",
+      },
+      deployedOnBlock: 11008297,
+    },
+    TransferVerifier: {
+      address: "0xeC6a74FE46daC491b04e711C6F2bC541f5d4512E",
+      abi: [
+        {
+          inputs: [],
+          name: "ProofInvalid",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ProofLengthInvalid",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ProofPointAtInfinity",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "PublicInputNotInField",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "bytes",
+              name: "proof",
+              type: "bytes",
+            },
+            {
+              internalType: "uint256[4]",
+              name: "input",
+              type: "uint256[4]",
+            },
+          ],
+          name: "verifyProof",
+          outputs: [],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "root",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "inputNullifier",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256[]",
+              name: "outputCommitments",
+              type: "uint256[]",
+            },
+            {
+              internalType: "bytes",
+              name: "proof",
+              type: "bytes",
+            },
+          ],
+          name: "verifyTransferProof",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 11008207,
+    },
+    WithdrawVerifier: {
+      address: "0xF27693Cf0c5bb293C7A05fb64cD29B6CeCba2cf8",
+      abi: [
+        {
+          inputs: [],
+          name: "ProofInvalid",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ProofLengthInvalid",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ProofPointAtInfinity",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "PublicInputNotInField",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "bytes",
+              name: "proof",
+              type: "bytes",
+            },
+            {
+              internalType: "uint256[2]",
+              name: "input",
+              type: "uint256[2]",
+            },
+          ],
+          name: "verifyProof",
+          outputs: [],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "root",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+            {
+              internalType: "bytes",
+              name: "proof",
+              type: "bytes",
+            },
+          ],
+          name: "verifyWithdrawProof",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 11008209,
+    },
+  },
+} as const;
 
 export default deployedContracts satisfies GenericContractsDeclaration;

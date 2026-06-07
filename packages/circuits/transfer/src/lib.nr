@@ -2,7 +2,7 @@ use shared::constants::{MAX_DEPTH, MERKLE_TREE_DOMAIN};
 use std::hash::poseidon2_permutation;
 
 /*
-* A binary merkle root implementation using Noir version 1.0.0-beta.22
+* A binary merkle root implementation using Noir version 1.0.0-beta.19
 *
 * Inspired by: https://github.com/zk-kit/zk-kit.noir/tree/main/packages/binary-merkle-root
 */

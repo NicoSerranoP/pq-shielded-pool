@@ -11,6 +11,7 @@
     "clean": "hardhat clean",
     "compile": "hardhat compile",
     "deploy": "ts-node scripts/runHardhatDeployWithPK.ts",
+    "deposit:inputs": "ts-node scripts/updateDepositInputs.ts",
     "flatten": "hardhat flatten",
     "fork": "MAINNET_FORKING_ENABLED=true hardhat node --network hardhat --no-deploy",
     "format": "prettier --write './**/*.(ts|sol)'",
@@ -19,6 +20,7 @@
     "lint": "eslint",
     "lint-staged": "eslint",
     "test": "REPORT_GAS=true hardhat test --network hardhat",
+    "wallet": "ts-node scripts/wallet.ts",
     "verify": "hardhat etherscan-verify"
   },
   "dependencies": {

@@ -1,11 +1,7 @@
 [profile.default]
-src = "src"
+src = "contracts"
 out = "out"
 libs = ["lib"]
-test = "test"
-cache_path = "cache"
-remappings = [
-    "@contracts/=../hardhat/contracts/",
-    "@circuits/=../circuits/"
-]
-fs_permissions = [{ access = "read", path = "../circuits/evm" }]
+test = "contracts/test"
+remappings = ["forge-std/=lib/forge-std/src/", "circuits/=../circuits/"]
+fs_permissions = [{ access = "read", path = "../circuits" }]

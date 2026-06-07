@@ -2,6 +2,8 @@ import { ethers } from "ethers";
 import { parse, stringify } from "envfile";
 import * as fs from "fs";
 import password from "@inquirer/password";
+import { createInterface } from "readline/promises";
+import { stdin as input, stdout as output } from "process";
 
 const envFilePath = "./.env";
 
@@ -28,6 +30,14 @@ const getWalletFromPrivateKey = async () => {
       console.log("❌ Invalid private key format. Please try again.");
     }
   }
+};
+
+const confirmAccountReplacement = async () => {
+  const rl = createInterface({ input, output });
+  const answer = await rl.question("You already have a deployer account. Replace it with a new private key? (y/N) ");
+  rl.close();
+
+  return answer.trim().toLowerCase() === "y";
 };
 
 const setNewEnvConfig = async (existingEnvConfig = {}) => {
@@ -59,8 +69,12 @@ async function main() {
 
   const existingEnvConfig = parse(fs.readFileSync(envFilePath).toString());
   if (existingEnvConfig.DEPLOYER_PRIVATE_KEY_ENCRYPTED) {
-    console.log("⚠️ You already have a deployer account. Check the packages/hardhat/.env file");
-    return;
+    const shouldReplace = await confirmAccountReplacement();
+
+    if (!shouldReplace) {
+      console.log("Keeping existing deployer account.");
+      return;
+    }
   }
 
   await setNewEnvConfig(existingEnvConfig);

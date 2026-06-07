@@ -1,6 +1,8 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import fs from "fs";
+import path from "path";
 
 describe("ShieldedPool", function () {
   const amount = ethers.parseEther("10");
@@ -8,6 +10,53 @@ describe("ShieldedPool", function () {
   const proof = "0x1234";
   const inputNullifier = 1111n;
   const outputCommitments = [2222n, 3333n];
+  const repoRoot = path.resolve(__dirname, "../../..");
+
+  function readDepositProofFixture() {
+    const inputsRaw = fs.readFileSync(path.join(repoRoot, "packages/circuits/deposit/evm/inputs.txt"), "utf8");
+    const [realCommitment, realAmount] = inputsRaw
+      .trim()
+      .split(/\s+/u)
+      .map(value => BigInt(value));
+    const realProof = fs.readFileSync(path.join(repoRoot, "packages/circuits/deposit/evm/proof.hex"), "utf8").trim();
+
+    return {
+      realAmount,
+      realCommitment,
+      realProof,
+    };
+  }
+
+  function readTransferProofFixture() {
+    const inputsRaw = fs.readFileSync(path.join(repoRoot, "packages/circuits/transfer/evm/inputs.txt"), "utf8");
+    const [realNullifier, outputCommitment0, outputCommitment1, realRoot] = inputsRaw
+      .trim()
+      .split(/\s+/u)
+      .map(value => BigInt(value));
+    const realProof = fs.readFileSync(path.join(repoRoot, "packages/circuits/transfer/evm/proof.hex"), "utf8").trim();
+
+    return {
+      realNullifier,
+      realOutputCommitments: [outputCommitment0, outputCommitment1],
+      realProof,
+      realRoot,
+    };
+  }
+
+  function readWithdrawProofFixture() {
+    const inputsRaw = fs.readFileSync(path.join(repoRoot, "packages/circuits/withdraw/evm/inputs.txt"), "utf8");
+    const [realAmount, realRoot] = inputsRaw
+      .trim()
+      .split(/\s+/u)
+      .map(value => BigInt(value));
+    const realProof = fs.readFileSync(path.join(repoRoot, "packages/circuits/withdraw/evm/proof.hex"), "utf8").trim();
+
+    return {
+      realAmount,
+      realProof,
+      realRoot,
+    };
+  }
 
   async function deployFixture() {
     const [deployer, depositor, recipient] = await ethers.getSigners();
@@ -76,6 +125,158 @@ describe("ShieldedPool", function () {
     return { ...fixture, root };
   }
 
+  async function deployRealDepositVerifierFixture() {
+    const [deployer, depositor, recipient] = await ethers.getSigners();
+    const { realAmount, realCommitment, realProof } = readDepositProofFixture();
+
+    const tokenFactory = await ethers.getContractFactory("SE2Token");
+    const token = await tokenFactory.deploy();
+    await token.waitForDeployment();
+
+    const depositVerifierFactory = await ethers.getContractFactory("DepositVerifier");
+    const depositVerifier = await depositVerifierFactory.deploy();
+    await depositVerifier.waitForDeployment();
+
+    const transferVerifierFactory = await ethers.getContractFactory("MockTransferVerifier");
+    const transferVerifier = await transferVerifierFactory.deploy();
+    await transferVerifier.waitForDeployment();
+
+    const withdrawVerifierFactory = await ethers.getContractFactory("MockWithdrawVerifier");
+    const withdrawVerifier = await withdrawVerifierFactory.deploy();
+    await withdrawVerifier.waitForDeployment();
+
+    const assetId = BigInt(await token.getAddress());
+
+    const poseidonFactory = await ethers.getContractFactory("poseidon-solidity/PoseidonT3.sol:PoseidonT3");
+    const poseidon = await poseidonFactory.deploy();
+    await poseidon.waitForDeployment();
+
+    const poolFactory = await ethers.getContractFactory("ShieldedPool", {
+      libraries: {
+        PoseidonT3: await poseidon.getAddress(),
+      },
+    });
+    const pool = await poolFactory.deploy(
+      await token.getAddress(),
+      await depositVerifier.getAddress(),
+      await transferVerifier.getAddress(),
+      await withdrawVerifier.getAddress(),
+      assetId,
+    );
+    await pool.waitForDeployment();
+
+    await token.mint(depositor.address, realAmount);
+    await token.connect(depositor).approve(await pool.getAddress(), realAmount);
+
+    return {
+      assetId,
+      depositVerifier,
+      depositor,
+      deployer,
+      pool,
+      realAmount,
+      realCommitment,
+      realProof,
+      recipient,
+      token,
+    };
+  }
+
+  async function deployRealTransferVerifierFixture() {
+    const fixture = await deployRealDepositVerifierFixture();
+    const { realNullifier, realOutputCommitments, realProof, realRoot } = readTransferProofFixture();
+
+    const transferVerifierFactory = await ethers.getContractFactory("TransferVerifier");
+    const transferVerifier = await transferVerifierFactory.deploy();
+    await transferVerifier.waitForDeployment();
+
+    const withdrawVerifierFactory = await ethers.getContractFactory("MockWithdrawVerifier");
+    const withdrawVerifier = await withdrawVerifierFactory.deploy();
+    await withdrawVerifier.waitForDeployment();
+
+    const poseidonFactory = await ethers.getContractFactory("poseidon-solidity/PoseidonT3.sol:PoseidonT3");
+    const poseidon = await poseidonFactory.deploy();
+    await poseidon.waitForDeployment();
+
+    const poolFactory = await ethers.getContractFactory("ShieldedPool", {
+      libraries: {
+        PoseidonT3: await poseidon.getAddress(),
+      },
+    });
+    const pool = await poolFactory.deploy(
+      await fixture.token.getAddress(),
+      await fixture.depositVerifier.getAddress(),
+      await transferVerifier.getAddress(),
+      await withdrawVerifier.getAddress(),
+      fixture.assetId,
+    );
+    await pool.waitForDeployment();
+
+    await fixture.token.mint(fixture.depositor.address, fixture.realAmount);
+    await fixture.token.connect(fixture.depositor).approve(await pool.getAddress(), fixture.realAmount);
+    await pool
+      .connect(fixture.depositor)
+      .deposit(fixture.realAmount, fixture.assetId, fixture.realCommitment, fixture.realProof);
+
+    return {
+      ...fixture,
+      pool,
+      realNullifier,
+      realOutputCommitments,
+      realTransferProof: realProof,
+      realTransferRoot: realRoot,
+      transferVerifier,
+      withdrawVerifier,
+    };
+  }
+
+  async function deployRealWithdrawVerifierFixture() {
+    const fixture = await deployRealDepositVerifierFixture();
+    const { realAmount, realProof, realRoot } = readWithdrawProofFixture();
+
+    const transferVerifierFactory = await ethers.getContractFactory("MockTransferVerifier");
+    const transferVerifier = await transferVerifierFactory.deploy();
+    await transferVerifier.waitForDeployment();
+
+    const withdrawVerifierFactory = await ethers.getContractFactory("WithdrawVerifier");
+    const withdrawVerifier = await withdrawVerifierFactory.deploy();
+    await withdrawVerifier.waitForDeployment();
+
+    const poseidonFactory = await ethers.getContractFactory("poseidon-solidity/PoseidonT3.sol:PoseidonT3");
+    const poseidon = await poseidonFactory.deploy();
+    await poseidon.waitForDeployment();
+
+    const poolFactory = await ethers.getContractFactory("ShieldedPool", {
+      libraries: {
+        PoseidonT3: await poseidon.getAddress(),
+      },
+    });
+    const pool = await poolFactory.deploy(
+      await fixture.token.getAddress(),
+      await fixture.depositVerifier.getAddress(),
+      await transferVerifier.getAddress(),
+      await withdrawVerifier.getAddress(),
+      fixture.assetId,
+    );
+    await pool.waitForDeployment();
+
+    await fixture.token.mint(fixture.depositor.address, fixture.realAmount);
+    await fixture.token.connect(fixture.depositor).approve(await pool.getAddress(), fixture.realAmount);
+    await pool
+      .connect(fixture.depositor)
+      .deposit(fixture.realAmount, fixture.assetId, fixture.realCommitment, fixture.realProof);
+
+    return {
+      ...fixture,
+      pool,
+      realWithdrawAmount: realAmount,
+      realWithdrawProof: realProof,
+      realWithdrawRoot: realRoot,
+      transferVerifier,
+      withdrawVerifier,
+    };
+  }
+
   it("accepts a well-formed deposit and inserts the commitment", async function () {
     const { assetId, commitment, depositor, pool, proof, token } = await loadFixture(deployFixture);
 
@@ -88,6 +289,25 @@ describe("ShieldedPool", function () {
     expect(await pool.treeDepth()).to.equal(0n);
     expect(await pool.hasCommitment(commitment)).to.equal(true);
     expect(await pool.commitmentIndex(commitment)).to.equal(0n);
+    expect(await pool.isKnownRoot(root)).to.equal(true);
+  });
+
+  it("accepts a deposit verified by the generated deposit verifier", async function () {
+    const { assetId, depositor, pool, realAmount, realCommitment, realProof, token } = await loadFixture(
+      deployRealDepositVerifierFixture,
+    );
+
+    await expect(pool.connect(depositor).deposit(realAmount, assetId, realCommitment, realProof)).to.emit(
+      pool,
+      "Deposit",
+    );
+
+    const root = await pool.currentRoot();
+
+    expect(await token.balanceOf(await pool.getAddress())).to.equal(realAmount);
+    expect(await pool.treeSize()).to.equal(1n);
+    expect(await pool.hasCommitment(realCommitment)).to.equal(true);
+    expect(await pool.commitmentIndex(realCommitment)).to.equal(0n);
     expect(await pool.isKnownRoot(root)).to.equal(true);
   });
 
@@ -154,6 +374,27 @@ describe("ShieldedPool", function () {
     expect(values[0]).to.equal(inputNullifier);
   });
 
+  it("transfers a note verified by the generated transfer verifier", async function () {
+    const { pool, realNullifier, realOutputCommitments, realTransferProof, realTransferRoot } = await loadFixture(
+      deployRealTransferVerifierFixture,
+    );
+
+    expect(await pool.currentRoot()).to.equal(realTransferRoot);
+
+    await expect(pool.transfer(realTransferRoot, realNullifier, realOutputCommitments, realTransferProof)).to.emit(
+      pool,
+      "Transfer",
+    );
+
+    const newRoot = await pool.currentRoot();
+
+    expect(await pool.treeSize()).to.equal(3n);
+    expect(await pool.hasCommitment(realOutputCommitments[0])).to.equal(true);
+    expect(await pool.hasCommitment(realOutputCommitments[1])).to.equal(true);
+    expect(await pool.isNullifierSpent(realNullifier)).to.equal(true);
+    expect(await pool.isKnownRoot(newRoot)).to.equal(true);
+  });
+
   it("rejects transfers against unknown roots", async function () {
     const { pool } = await loadFixture(deployFixture);
 
@@ -210,6 +451,23 @@ describe("ShieldedPool", function () {
     expect(await token.balanceOf(recipient.address)).to.equal(amount);
     expect(await token.balanceOf(await pool.getAddress())).to.equal(0n);
     expect(await pool.isNullifierSpent(inputNullifier)).to.equal(true);
+  });
+
+  it("withdraws a note verified by the generated withdraw verifier", async function () {
+    const { pool, realWithdrawAmount, realWithdrawProof, realWithdrawRoot, recipient, token } = await loadFixture(
+      deployRealWithdrawVerifierFixture,
+    );
+    const realNullifier = 999999n;
+
+    expect(await pool.currentRoot()).to.equal(realWithdrawRoot);
+
+    await expect(
+      pool.withdraw(realWithdrawRoot, realNullifier, recipient.address, realWithdrawAmount, realWithdrawProof),
+    ).to.emit(pool, "Withdrawal");
+
+    expect(await token.balanceOf(recipient.address)).to.equal(realWithdrawAmount);
+    expect(await token.balanceOf(await pool.getAddress())).to.equal(0n);
+    expect(await pool.isNullifierSpent(realNullifier)).to.equal(true);
   });
 
   it("rejects withdrawals against unknown roots", async function () {

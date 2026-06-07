@@ -467,10 +467,6 @@ contract ProvekitGroth16Verifier {
         _writeReversedAt(msgBuf, 64 + 32 * 0, input[0]); // CODEGEN: committed[0] = input[0]
         //<END_CODEGEN:COMMITTED_INDICES>
 
-        // The Rust prover and verifier always use `hash_to_fr_multi`
-        // unconditionally for every N — including N=1. The counter-chain
-        // produces a different value than a bare `hash_to_fr` call, so we
-        // must mirror that here for all values of N_CHALLENGE.
         return _hashToFrMulti(msgBuf, DST_COMMITMENT);
     }
 
