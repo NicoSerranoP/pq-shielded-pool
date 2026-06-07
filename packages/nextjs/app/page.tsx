@@ -138,7 +138,7 @@ const ACTIONS: ActionSpec[] = [
   {
     id: "withdraw",
     label: "Withdraw",
-    detail: "Release public tokens",
+    detail: "Release public wei",
     buttonClass: "btn-warning",
     icon: ArrowUpTrayIcon,
   },
@@ -148,7 +148,7 @@ const PUBLIC_INPUT_FIELD_SETS: Record<DemoAction, PublicInputField[]> = {
   deposit: [
     { field: "commitment", label: "commitment", placeholder: "0x..." },
     { field: "amount", label: "amount", placeholder: "10" },
-    { field: "assetId", label: "assetId", placeholder: "31337" },
+    { field: "assetId", label: "assetId", placeholder: "1" },
     { field: "proof", label: "zkProof", placeholder: "0x..." },
   ],
   transfer: [
@@ -285,7 +285,9 @@ const shortenValue = (value: string, head = 10, tail = 6) => {
 
 const normalizeInput = (value: string, fallback: string) => value.trim() || fallback;
 
-const amountLabel = (amount: string) => `${normalizeInput(amount, "0")} SE2`;
+const SEPOLIA_SHIELDED_POOL_ADDRESS = "0x286CD3713B16Cfc13C58A344d54BeA8eCF16dA54";
+
+const amountLabel = (amount: string) => `${normalizeInput(amount, "0")} wei`;
 
 const parseAmount = (amount: string) => {
   const parsed = Number.parseFloat(amount);
@@ -417,7 +419,7 @@ const INITIAL_ROOT = getTreeRoot(INITIAL_DEMO_LEAVES);
 const INITIAL_PUBLIC_INPUTS: PublicInputs = {
   deposit: {
     amount: "10",
-    assetId: "31337",
+    assetId: "1",
     commitment: "0xb8f9462e1ad4",
     proof: "0xdeposit-proof",
   },
@@ -471,7 +473,7 @@ const createArtifacts = (
     const inputs = publicInputs.deposit;
     const baseArtifacts: FlowArtifacts = {
       amount: amountLabel(inputs.amount),
-      assetId: normalizeInput(inputs.assetId, "31337"),
+      assetId: normalizeInput(inputs.assetId, "1"),
       commitment: normalizeInput(inputs.commitment, randomHex(12)),
       inputNullifier: publicInputs.transfer.inputNullifier,
       newRoot: currentRoot,
@@ -559,8 +561,8 @@ const buildFlowSteps = (action: DemoAction, artifacts: FlowArtifacts): FlowStep[
         durationMs: MEDIUM_FLOW_MS,
       },
       {
-        title: "Pool checks token balance",
-        detail: "ERC20 transfer amount is matched before the note is inserted.",
+        title: "Pool checks native ETH value",
+        detail: "Payable deposit amount is matched before the note is inserted.",
         durationMs: MEDIUM_FLOW_MS,
       },
       {
@@ -666,8 +668,8 @@ const buildFlowSteps = (action: DemoAction, artifacts: FlowArtifacts): FlowStep[
       durationMs: MEDIUM_FLOW_MS,
     },
     {
-      title: "Release ERC20 tokens",
-      detail: "ShieldedPool transfers public tokens to the recipient.",
+      title: "Release native ETH",
+      detail: "ShieldedPool transfers public wei to the recipient.",
       durationMs: MEDIUM_FLOW_MS,
       artifact: artifacts.amount,
     },
@@ -739,12 +741,13 @@ const Home: NextPage = () => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const isLocalTarget = targetNetwork.id === 31337;
   const isSepoliaTarget = targetNetwork.id === 11155111;
+  const hasShieldedPoolDeployment = isLocalTarget || isSepoliaTarget;
 
   const { data: chainTreeSize } = useScaffoldReadContract({
     contractName: "ShieldedPool",
     functionName: "treeSize",
     query: {
-      enabled: isLocalTarget,
+      enabled: hasShieldedPoolDeployment,
       retry: false,
     },
   });
@@ -753,7 +756,7 @@ const Home: NextPage = () => {
     contractName: "ShieldedPool",
     functionName: "treeDepth",
     query: {
-      enabled: isLocalTarget,
+      enabled: hasShieldedPoolDeployment,
       retry: false,
     },
   });
@@ -762,7 +765,7 @@ const Home: NextPage = () => {
     contractName: "ShieldedPool",
     functionName: "currentRoot",
     query: {
-      enabled: isLocalTarget,
+      enabled: hasShieldedPoolDeployment,
       retry: false,
     },
   });
@@ -866,8 +869,8 @@ const Home: NextPage = () => {
   const selectedPublicInputs = publicInputs[selectedAction] as Record<string, string>;
 
   const localStats = [
-    { label: "Shielded balance", value: `${stats.shieldedBalance} SE2` },
-    { label: "Public balance", value: `${stats.publicBalance} SE2` },
+    { label: "Shielded balance", value: `${stats.shieldedBalance} wei` },
+    { label: "Public balance", value: `${stats.publicBalance} wei` },
     { label: "Private notes", value: stats.privateNotes.toString() },
     { label: "Spent nullifiers", value: stats.spentNullifiers.toString() },
     { label: "Demo tree leaves", value: stats.treeSize.toString() },
@@ -875,15 +878,26 @@ const Home: NextPage = () => {
   ];
 
   const chainStats = [
-    { label: "Chain tree size", value: isLocalTarget ? formatOptionalBigInt(chainTreeSize) : "not deployed" },
-    { label: "Tree depth", value: isLocalTarget ? formatOptionalBigInt(chainTreeDepth) : "not deployed" },
-    { label: "Current root", value: isLocalTarget ? formatOptionalRoot(chainRoot) : "not deployed" },
+    {
+      label: "Live contract",
+      value: isSepoliaTarget
+        ? shortenValue(SEPOLIA_SHIELDED_POOL_ADDRESS)
+        : isLocalTarget
+          ? "Hardhat local"
+          : "not deployed",
+    },
+    {
+      label: "Chain tree size",
+      value: hasShieldedPoolDeployment ? formatOptionalBigInt(chainTreeSize) : "not deployed",
+    },
+    { label: "Tree depth", value: hasShieldedPoolDeployment ? formatOptionalBigInt(chainTreeDepth) : "not deployed" },
+    { label: "Current root", value: hasShieldedPoolDeployment ? formatOptionalRoot(chainRoot) : "not deployed" },
   ];
 
   const networkStats = [
     { label: "Selected network", value: targetNetwork.name },
     { label: "Hardhat", value: isLocalTarget ? "active target" : "available" },
-    { label: "Sepolia", value: isSepoliaTarget ? "deployment pending" : "configured" },
+    { label: "Sepolia", value: isSepoliaTarget ? "active deployment" : "configured" },
   ];
 
   return (

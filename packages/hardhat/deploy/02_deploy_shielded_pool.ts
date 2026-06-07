@@ -1,78 +1,93 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 
-const parseAssetId = (assetId: string | undefined, tokenAddress: string) => {
-  const rawAssetId = assetId?.trim() || tokenAddress;
-  let parsed: bigint;
-
-  try {
-    parsed = BigInt(rawAssetId);
-  } catch {
-    throw new Error("SHIELDED_POOL_ASSET_ID must be a decimal or 0x-prefixed integer");
-  }
-
-  if (parsed === 0n) {
-    throw new Error("SHIELDED_POOL_ASSET_ID must be non-zero");
-  }
-
-  return parsed;
-};
-
 const deployShieldedPool: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await hre.getNamedAccounts();
-  const { deploy, get } = hre.deployments;
-  const configuredTokenAddress = process.env.SHIELDED_POOL_TOKEN_ADDRESS?.trim();
+  const { deploy, save } = hre.deployments;
 
-  if (configuredTokenAddress && !hre.ethers.isAddress(configuredTokenAddress)) {
-    throw new Error("SHIELDED_POOL_TOKEN_ADDRESS must be a valid EVM address");
-  }
-
-  const tokenAddress = configuredTokenAddress ?? (await get("SE2Token")).address;
-  const assetId = parseAssetId(process.env.SHIELDED_POOL_ASSET_ID, tokenAddress);
-
-  const poseidon = await deploy("PoseidonT3", {
-    contract: "poseidon-solidity/PoseidonT3.sol:PoseidonT3",
+  // Deploy Groth16 verifier for deposit circuit
+  const depositGroth16Verifier = await deploy("DepositProvekitGroth16Verifier", {
+    contract: "contracts/DepositVerifier.sol:ProvekitGroth16Verifier",
     from: deployer,
     log: true,
     autoMine: true,
   });
 
-  const depositVerifier = await deploy("DepositVerifier", {
-    contract: "DepositVerifier",
+  // Deploy the wrapper that implements IDepositVerifier
+  const depositVerifier = await deploy("DepositVerifierWrapper", {
+    from: deployer,
+    args: [depositGroth16Verifier.address],
+    log: true,
+    autoMine: true,
+  });
+
+  // Deploy Groth16 verifier for transfer circuit
+  const transferGroth16Verifier = await deploy("TransferProvekitGroth16Verifier", {
+    contract: "contracts/TransferVerifier.sol:ProvekitGroth16Verifier",
     from: deployer,
     log: true,
     autoMine: true,
   });
 
-  const transferVerifier = await deploy("TransferVerifier", {
-    contract: "TransferVerifier",
+  // Deploy the wrapper that implements ITransferVerifier
+  const transferVerifier = await deploy("TransferVerifierWrapper", {
+    from: deployer,
+    args: [transferGroth16Verifier.address],
+    log: true,
+    autoMine: true,
+  });
+
+  // Deploy Groth16 verifier for withdraw circuit
+  const withdrawGroth16Verifier = await deploy("WithdrawProvekitGroth16Verifier", {
+    contract: "contracts/WithdrawVerifier.sol:ProvekitGroth16Verifier",
     from: deployer,
     log: true,
     autoMine: true,
   });
 
-  const withdrawVerifier = await deploy("WithdrawVerifier", {
-    contract: "WithdrawVerifier",
+  // Deploy the wrapper that implements IWithdrawVerifier
+  const withdrawVerifier = await deploy("WithdrawVerifierWrapper", {
     from: deployer,
+    args: [withdrawGroth16Verifier.address],
     log: true,
     autoMine: true,
   });
 
-  await deploy("ShieldedPool", {
-    from: deployer,
-    args: [tokenAddress, depositVerifier.address, transferVerifier.address, withdrawVerifier.address, assetId],
-    libraries: {
-      PoseidonT3: poseidon.address,
-    },
-    log: true,
-    autoMine: true,
+  // ShieldedPool uses Poseidon2T4 (inline library, no external linking needed)
+  const assetId = 1;
+  const deployerSigner = await hre.ethers.getSigner(deployer);
+
+  const ShieldedPoolFactory = await hre.ethers.getContractFactory("ShieldedPool", {
+    signer: deployerSigner,
   });
 
-  console.log(`ShieldedPool token: ${tokenAddress}`);
-  console.log(`ShieldedPool asset id: ${assetId}`);
+  const constructorArgs = [
+    depositVerifier.address,
+    transferVerifier.address,
+    withdrawVerifier.address,
+    assetId,
+  ] as const;
+
+  const shieldedPool = await ShieldedPoolFactory.deploy(...constructorArgs, { gasLimit: 8_000_000 });
+  await shieldedPool.waitForDeployment();
+  const address = await shieldedPool.getAddress();
+
+  console.log(`deploying "ShieldedPool" ...: deployed at ${address}`);
+
+  const artifact = await hre.artifacts.readArtifact("ShieldedPool");
+  const deployTx = shieldedPool.deploymentTransaction();
+
+  await save("ShieldedPool", {
+    address,
+    abi: artifact.abi,
+    transactionHash: deployTx?.hash,
+    args: [...constructorArgs],
+    bytecode: artifact.bytecode,
+    deployedBytecode: artifact.deployedBytecode,
+  });
 };
 
 export default deployShieldedPool;
 
 deployShieldedPool.tags = ["ShieldedPool"];
-deployShieldedPool.dependencies = ["SE2Token"];
+deployShieldedPool.dependencies = [];

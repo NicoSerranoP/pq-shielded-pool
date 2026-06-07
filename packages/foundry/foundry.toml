@@ -3,5 +3,11 @@ src = "contracts"
 out = "out"
 libs = ["lib"]
 test = "contracts/test"
-remappings = ["forge-std/=lib/forge-std/src/", "circuits/=../circuits/"]
+cache_path = "cache"
+remappings = [
+    "forge-std/=lib/forge-std/src/",
+    "circuits/=../circuits/",
+    "@contracts/=../hardhat/contracts/",
+    "@circuits/=../circuits/"
+]
 fs_permissions = [{ access = "read", path = "../circuits" }]

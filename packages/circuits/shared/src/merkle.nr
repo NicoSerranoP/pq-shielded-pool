@@ -33,13 +33,9 @@ pub fn binary_merkle_root(
 }
 
 /*
-* A poseidon wrapper that takes domain value, 1st input, 2nd input and zero for padding.
-* The poseidon2 blackbox expects 4 fields
-* This prevents collision between domains in merkle tree, note commitments and nullifiers
-*
-* @params xs: an array of 2 fields to be hashed
-*
-* @returns the poseidon hash
+* Poseidon2 hash for Merkle tree nodes.
+* Uses domain separator MERKLE_TREE_DOMAIN=1 and pads to t=4 state.
+* Must match the on-chain Poseidon2T4.hash implementation.
 */
 pub fn poseidon2(xs: [Field; 2]) -> Field {
     poseidon2_permutation([MERKLE_TREE_DOMAIN, xs[0], xs[1], 0], 4)[0]

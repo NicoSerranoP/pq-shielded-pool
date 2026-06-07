@@ -1,80 +1,111 @@
-## Installing Provekit
+## Prerequisites
 
-In order to use `provekit-cli` you need to install the binary in your machine. Follow these steps (in Linux):
+### Install Nargo
 
 ```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-# Install noirup
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
-# Install specific noir version compatible with Provekit
-noirup --version v1.0.0-beta.19
-# Clone the repository
+noirup --version v1.0.0-beta.11
+```
+
+### Install Provekit CLI
+
+```bash
+# Install Rust if not already installed
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Clone and build
 git clone https://github.com/worldfnd/provekit
-
 cd provekit
-# Build from source
 cargo build --release
-# Build provekit-cli
-cargo build -p provekit-cli --release
-# Create a directory for the binary
-mkdir -p "$HOME/prove-kit/bin"
-# Move binary and library to a directory in your PATH
-mv /target/release/provekit-cli $HOME/prove-kit/bin/
-mv /target/release/provekit-cli.d $HOME/prove-kit/bin/
-# Make the binary executable
-chmod +x $HOME/prove-kit/bin/provekit-cli
-# Add the binary to your PATH
-echo 'export PATH="$HOME/prove-kit/bin:$PATH"' >> ~/.bashrc
-# Reset your terminal or run
-source ~/.bashrc
-# Test it with
-provekit-cli --help
 ```
 
-## EVM proof export
-
-The checked-in `deposit`, `transfer`, and `withdraw` EVM fixtures are Groth16-wrapped artifacts:
-
-- `packages/circuits/<ACTION_CIRCUIT>/Verifier.sol`
-- `packages/circuits/<ACTION_CIRCUIT>/evm/proof.hex`
-- `packages/circuits/<ACTION_CIRCUIT>/evm/inputs.txt`
-
-Some Provekit builds expose only `prepare`, `prove`, and `verify`. To regenerate EVM artifacts, use a build that also exposes `export-solidity` and `export-evm-proof`; `origin/rs/verifying_contract` at commit `dd237e54` was verified locally for fresh deposit EVM proof export.
+Then set the `PROVEKIT_CLI` environment variable in `packages/hardhat/.env` (copy from `.env.example`):
 
 ```bash
-git clone https://github.com/worldfnd/provekit /tmp/provekit-evm-export
-cd /tmp/provekit-evm-export
-git checkout rs/verifying_contract
-cargo build --release -p provekit-cli
-cd /path/to/pq-shielded-pool
-PROVEKIT_CLI=/tmp/provekit-evm-export/target/release/provekit-cli yarn circuits:evm
+PROVEKIT_CLI=/path/to/provekit/target/release/provekit-cli
 ```
 
-`yarn circuits:evm` regenerates all three circuit EVM artifacts and syncs the renamed verifier contracts into `packages/hardhat/contracts/generated`. Groth16 setup is randomized, so verifier and proof diffs are expected.
+Each developer sets this to their own local build path. It is gitignored.
 
-## Prepare, prove and verify the circuits (only Provekit)
-```bash
-cd packages/circuits/<ACTION_CIRCUIT>
+---
 
-provekit-cli prepare
-provekit-cli prove
-provekit-cli verify
-```
+## Circuit Overview
 
+| Circuit | Private inputs | Public inputs |
+|---------|---------------|---------------|
+| `deposit` | `note` | `commitment`, `value` |
+| `transfer` | `old_note`, `new_notes`, `merkle_proof` | `nullifier`, `new_notes_commitments`, `published_root` |
+| `withdraw` | `note`, `merkle_proof` | `value`, `published_root` |
 
-## Prepare, prove and verify the circuits (Provekit wrapped in Groth16)
+---
+
+## Computing Note Values (commitment + nullifier)
+
+Before generating a proof you need to compute the commitment and nullifier for a note. Use the `note_helper` circuit:
+
 ```bash
 cd packages/circuits
+
+# Edit note_helper/Prover.toml with your note fields:
+# value = <amount>
+# owner = "<owner field element>"
+# nonce = <nonce>
+# asset = <asset id>
+
+nargo execute --package note_helper
+# Output: [note_helper] Circuit output: (<commitment>, <nullifier>)
+```
+
+---
+
+## Generating a Deposit Proof
+
+```bash
+cd packages/circuits/deposit
+
+# 1. Fill in Prover.toml with your note fields and computed commitment
+# 2. Prove
+$PROVEKIT_CLI prove -p deposit.pkp -i Prover.toml -o proof.np
+
+# 3. Export to EVM calldata
+$PROVEKIT_CLI export-evm-proof -p proof.np -o evm/
+# Writes evm/proof.hex and evm/inputs.txt
+```
+
+---
+
+## Running the End-to-End Deposit Test
+
+The test script handles everything automatically — computing the commitment, generating the proof, and submitting the deposit transaction.
+
+Run from the repo root:
+
+```bash
+# localhost
+AMOUNT=5 NONCE=0 yarn test:deposit
+
+# Sepolia
+AMOUNT=5 NONCE=0 yarn test:deposit --network sepolia
+```
+
+`AMOUNT` and `NONCE` must be unique per deposit — reusing the same combination produces a duplicate commitment that the contract will reject.
+
+---
+
+## Prepare, prove and verify the circuits (Provekit wrapped in Groth16)
+
+```bash
 nargo build
 
-cd <ACTION_CIRCUIT>
+cd packages/circuits/<ACTION_CIRCUIT>
 
-provekit-cli prepare ../target/<ACTION_CIRCUIT>.json --backend groth16
+$PROVEKIT_CLI prepare ../target/<ACTION_CIRCUIT>.json
 
-provekit-cli export-solidity --pkv <ACTION_CIRCUIT>.pkv --template ../ProvekitGroth16Verifier.sol --out Verifier.sol
+$PROVEKIT_CLI export-solidity --pkv <ACTION_CIRCUIT>.pkv --template ../ProvekitGroth16Verifier.sol --out Verifier.sol
 
-provekit-cli prove
+$PROVEKIT_CLI prove -p <ACTION_CIRCUIT>.pkp -i Prover.toml -o proof.np
 
-provekit-cli export-evm-proof --proof proof.np --out-dir evm
+$PROVEKIT_CLI export-evm-proof -p proof.np -o evm/
 ```
+
+Then copy the updated `Verifier.sol` to `packages/hardhat/contracts/DepositVerifier.sol` (or the relevant contract) and redeploy.
