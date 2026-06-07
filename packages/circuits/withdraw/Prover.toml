@@ -1,4 +1,4 @@
-published_root = "0x20a515fe7c855f5887fd8f883cac184945949356f0d12a12835193cbd750c460"
+published_root = "0x2a7cec1480256063ea182a8bf73400768305bf001a0dd0d5fa6762554b846321"
 value = 5
 
 [merkle_proof]
@@ -9,5 +9,5 @@ siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 [note]
 asset = 1
 nonce = 0
-owner = "0x17aa07f6560b626ccd53cbfb2a0f5b4727b31fb8882ec591a22e7e893c067bd2"
+owner = "419779223150668528406796704116317490430959102897"
 value = 5

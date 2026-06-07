@@ -1427,8 +1427,53 @@ const deployedContracts = {
     },
   },
   11155111: {
+    DepositProvekitGroth16Verifier: {
+      address: "0x09efD8e6a8dA2ea4B926b74F882791f54BACca33",
+      abi: [
+        {
+          inputs: [],
+          name: "ProofInvalid",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ProofLengthInvalid",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ProofPointAtInfinity",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "PublicInputNotInField",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "bytes",
+              name: "proof",
+              type: "bytes",
+            },
+            {
+              internalType: "uint256[2]",
+              name: "input",
+              type: "uint256[2]",
+            },
+          ],
+          name: "verifyProof",
+          outputs: [],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 11008703,
+    },
     DepositVerifierWrapper: {
-      address: "0xc38C1d10a7622259A12ED4078617eafD2Ff8B0b4",
+      address: "0x02d4382E856199323bAaBdc99AEdcc9986A26E4B",
       abi: [
         {
           inputs: [
@@ -1490,10 +1535,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11008338,
+      deployedOnBlock: 11008704,
     },
     MockTransferVerifier: {
-      address: "0x5D3baBa91176be565790BF42694A8D2080C96405",
+      address: "0x3bC9562CeaB8cac3Cbe7F3472aB5211821D74580",
       abi: [
         {
           inputs: [
@@ -1557,7 +1602,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11008339,
+      deployedOnBlock: 11008705,
     },
     MockWithdrawVerifier: {
       address: "0xc43D7DAF80Ff0C357790f4f73c8Be85A136cAEd1",
@@ -2051,7 +2096,7 @@ const deployedContracts = {
       deployedOnBlock: 11005101,
     },
     ShieldedPool: {
-      address: "0xdeC6309f245D48E612a834b8Ee435c3669a6a8b0",
+      address: "0xd568f71Fd75445920316BEff882D916254d3faC6",
       abi: [
         {
           inputs: [
@@ -2784,6 +2829,121 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
+    },
+    WithdrawProvekitGroth16Verifier: {
+      address: "0x701Dbf4a20d6327690AF264a81824625d326aC4a",
+      abi: [
+        {
+          inputs: [],
+          name: "ProofInvalid",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ProofLengthInvalid",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "ProofPointAtInfinity",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "PublicInputNotInField",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "bytes",
+              name: "proof",
+              type: "bytes",
+            },
+            {
+              internalType: "uint256[2]",
+              name: "input",
+              type: "uint256[2]",
+            },
+          ],
+          name: "verifyProof",
+          outputs: [],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 11008706,
+    },
+    WithdrawVerifierWrapper: {
+      address: "0xD8D448aDD7BA496fdAe67A7Ae8C26065b510EC2c",
+      abi: [
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "groth16Verifier_",
+              type: "address",
+            },
+          ],
+          stateMutability: "nonpayable",
+          type: "constructor",
+        },
+        {
+          inputs: [],
+          name: "groth16Verifier",
+          outputs: [
+            {
+              internalType: "contract IGroth16WithdrawVerifier",
+              name: "",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "root",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+            {
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+            {
+              internalType: "bytes",
+              name: "proof",
+              type: "bytes",
+            },
+          ],
+          name: "verifyWithdrawProof",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 11008707,
     },
   },
 } as const;

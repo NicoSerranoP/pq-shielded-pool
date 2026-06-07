@@ -5,9 +5,9 @@ const deployShieldedPool: DeployFunction = async function (hre: HardhatRuntimeEn
   const { deployer } = await hre.getNamedAccounts();
   const { deploy, save } = hre.deployments;
 
-  // Deploy the raw Groth16 verifier generated from the deposit circuit
-  const groth16Verifier = await deploy("ProvekitGroth16Verifier", {
-    contract: "ProvekitGroth16Verifier",
+  // Deploy Groth16 verifier for deposit circuit
+  const depositGroth16Verifier = await deploy("DepositProvekitGroth16Verifier", {
+    contract: "contracts/DepositVerifier.sol:ProvekitGroth16Verifier",
     from: deployer,
     log: true,
     autoMine: true,
@@ -16,20 +16,30 @@ const deployShieldedPool: DeployFunction = async function (hre: HardhatRuntimeEn
   // Deploy the wrapper that implements IDepositVerifier
   const depositVerifier = await deploy("DepositVerifierWrapper", {
     from: deployer,
-    args: [groth16Verifier.address],
+    args: [depositGroth16Verifier.address],
     log: true,
     autoMine: true,
   });
 
-  // Deploy mock verifiers for transfer and withdraw (circuits not ready yet)
+  // Deploy mock verifier for transfer (circuit not ready yet)
   const transferVerifier = await deploy("MockTransferVerifier", {
     from: deployer,
     log: true,
     autoMine: true,
   });
 
-  const withdrawVerifier = await deploy("MockWithdrawVerifier", {
+  // Deploy Groth16 verifier for withdraw circuit
+  const withdrawGroth16Verifier = await deploy("WithdrawProvekitGroth16Verifier", {
+    contract: "contracts/WithdrawVerifier.sol:ProvekitGroth16Verifier",
     from: deployer,
+    log: true,
+    autoMine: true,
+  });
+
+  // Deploy the wrapper that implements IWithdrawVerifier
+  const withdrawVerifier = await deploy("WithdrawVerifierWrapper", {
+    from: deployer,
+    args: [withdrawGroth16Verifier.address],
     log: true,
     autoMine: true,
   });
