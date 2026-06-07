@@ -1,0 +1,8 @@
+[package]
+name = "note_helper"
+type = "bin"
+authors = [""]
+compiler_version = ">=1.0.0"
+
+[dependencies]
+shared = { path = "../shared" }
