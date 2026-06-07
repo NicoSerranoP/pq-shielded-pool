@@ -47,6 +47,7 @@
     "vercel": "yarn workspace @se-2/nextjs vercel",
     "vercel:login": "yarn workspace @se-2/nextjs vercel:login",
     "vercel:yolo": "yarn workspace @se-2/nextjs vercel:yolo",
+    "test:deposit": "yarn workspace @se-2/hardhat test:deposit",
     "verify": "yarn hardhat:verify"
   },
   "devDependencies": {

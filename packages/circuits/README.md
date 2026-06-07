@@ -76,19 +76,19 @@ $PROVEKIT_CLI export-evm-proof -p proof.np -o evm/
 
 ## Running the End-to-End Deposit Test
 
-The test script handles everything automatically — computing the commitment, generating the proof, and submitting the deposit transaction:
+The test script handles everything automatically — computing the commitment, generating the proof, and submitting the deposit transaction.
+
+Run from the repo root:
 
 ```bash
-cd packages/hardhat
-yarn hardhat run scripts/testDeposit.ts --network localhost
+# localhost
+AMOUNT=5 NONCE=0 yarn test:deposit
+
+# Sepolia
+AMOUNT=5 NONCE=0 yarn test:deposit --network sepolia
 ```
 
-To deposit a different amount, edit these fields in `scripts/testDeposit.ts`:
-
-```ts
-const amount = 5;   // deposit amount
-const nonce = 0;    // must be unique per note for the same owner
-```
+`AMOUNT` and `NONCE` must be unique per deposit — reusing the same combination produces a duplicate commitment that the contract will reject.
 
 ---
 
