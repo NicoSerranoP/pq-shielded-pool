@@ -34,3 +34,9 @@ cargo run -q --example verify_split_proof_custom
 ```
 
 The helper submits the split trace, FRI, memory-page, and main-proof transactions expected by the StarkWare GPS verifier contracts. The Poseidon Merkle legacy-GPS wrapper runs this automatically when `STONE_VERIFY_ON_FORK=true`.
+
+## Full-Bootloader Scarb Hook
+
+The local shielded-pool transfer verifier run used a patched Scarb 2.18 `scarb-execute` binary that can emit Stone AIR for bootloader-target execution. The rebuildable patch is preserved at `patches/scarb-2.18.0-cairo1-stone-full-bootloader.patch`.
+
+The compiled bootloader JSON used by that patch is preserved at `tools/stark-evm-adapter/bootloader/test_compiled_bootloader.json`. The rebuild script copies the committed bootloader JSON into the Scarb checkout before applying the patch, so clean rebuilds no longer depend on `/tmp/stark-evm-adapter` state.

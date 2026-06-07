@@ -30,6 +30,14 @@ corepack yarn cairo:merkle:build       # Build the Cairo Merkle fixture
 corepack yarn cairo:merkle:prove-local # Generate and verify the local Stwo Merkle proof; do not use Atlantic
 corepack yarn cairo:merkle:prepare-recursive-inputs # Prepare local recursive-verifier proof inputs
 corepack yarn cairo:merkle:verify-recursive-local   # Run local Cairo recursive verifier for the Merkle proof
+corepack yarn scarb:build-patched-execute         # Build patched Scarb 2.18 scarb-execute for Stone AIR/full-bootloader workflows
+corepack yarn cairo:shielded-pool:build              # Build Cairo deposit/transfer/withdraw statement prototypes
+corepack yarn cairo:shielded-pool:test               # Test Cairo shielded-pool statement output bindings
+corepack yarn cairo:shielded-pool:prove-stone:deposit  # Generate and locally verify the deposit Stone proof; do not use Atlantic
+corepack yarn cairo:shielded-pool:prove-stone:transfer # Generate and locally verify the transfer Stone proof; do not use Atlantic
+corepack yarn cairo:shielded-pool:prove-stone:withdraw # Generate and locally verify the withdraw Stone proof; do not use Atlantic
+corepack yarn cairo:shielded-pool:prove-stone-legacy-gps:transfer # Full-bootloader transfer proof for deployed-GPS compatibility
+corepack yarn cairo:shielded-pool:prove-stone-legacy-gps:transfer:fork # Submit the local transfer proof to deployed GPS verifier contracts on a local mainnet fork
 corepack yarn atlantic:merkle:mock     # Submit mocked Atlantic L1 fact workflow for public fixture only
 
 # Contract verification (works for both)
@@ -50,6 +58,8 @@ yarn vercel:yolo --prod # for deployment of frontend
 
 ### Cairo/STARK L1 Verification
 
+The private-transfer migration track now has an additive Cairo fact adapter at `packages/hardhat/contracts/CairoShieldedPoolVerifier.sol` and Cairo statement prototypes at `packages/cairo-shielded-pool`. The adapter implements the existing `ShieldedPool` verifier interfaces, so the provekit path can remain intact while a PQ path is tested in parallel. The Cairo statements return serialized arrays including the Cairo array length prefix: deposit `[4, 1, amount, assetId, commitment]`, transfer `[6, 2, root, nullifier, 2, out0, out1]`, and withdraw `[5, 3, root, nullifier, recipient, amount]`. The local-only Stone wrapper at `packages/cairo-shielded-pool/scripts/prove-local-stone.sh` generates AIR and proves/verifies these statements without sending witnesses to Atlantic. The stronger full-bootloader transfer path at `packages/cairo-shielded-pool/scripts/prove-local-stone-legacy-gps.sh` verifies through deployed GPS verifier contracts on a local mainnet fork and used `6,612,319` gas in the latest run.
+
 The planned L1 verification path is Cairo program execution proven through SHARP/S-two, with Ethereum contracts checking registered Cairo facts. Atlantic is remote proving in the current workflow: never submit private witnesses through it. The current toy Merkle Cairo fixture lives in `packages/cairo-merkle`; the Solidity fact adapter lives in `packages/hardhat/contracts/CairoFactVerifier.sol`. Local Stwo proof generation and local Cairo recursive verification pass for the Merkle fixture. A correctly shaped Cairo task PIE passes Atlantic trace generation on an `L` worker, mocked Sepolia Satellite registration, and real non-mocked Sepolia L1 fact registration. Scarb bootloader-target PIEs are invalid for this purpose; use the tested patch at `patches/scarb-2.18.0-cairo1-task-pie.patch`. Reproduce the public task-PIE path with `corepack yarn cairo:merkle:build-recursive-task-pie`, `corepack yarn cairo:merkle:check-recursive-task-pie`, and `corepack yarn atlantic:merkle:task-pie:resume-real`. Real proof-backed Sepolia query `01KTDCSWGYZAGANJZYY4E3MDGF` is `DONE` with Satellite `valid: true` and `isMocked: false`. See [docs/pq-proof-testing-handoff.md](docs/pq-proof-testing-handoff.md), [docs/cairo-l1-verification-workflow.md](docs/cairo-l1-verification-workflow.md), and [docs/atlantic-stwo-bug-log.md](docs/atlantic-stwo-bug-log.md) for commands, query ids, fact-hash calculation, and privacy caveats.
 
 ### Monorepo Structure
@@ -57,7 +67,8 @@ The planned L1 verification path is Cairo program execution proven through SHARP
 The protocol requires multiple packages to work:
 
 - `packages/cairo-merkle`: Cairo Merkle proof fixture for SHARP/S-two L1 fact verification experiments
-- `packages/circuits`: Circom circuits for zk proof generation and verification (currently using Noir)
+- `packages/cairo-shielded-pool`: Cairo deposit/transfer/withdraw statement prototypes that emit the public outputs consumed by `CairoShieldedPoolVerifier`
+- `packages/circuits`: Noir/provekit circuits for zk proof generation and verification; this path is retained but not post-quantum because provekit's EVM path wraps with Groth16
 - `packages/hardhat`: Smart contract development, deployment scripts, and contract tests
 - `packages/nextjs`: React frontend for user interaction with the protocol
 
