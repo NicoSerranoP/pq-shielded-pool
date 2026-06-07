@@ -13,7 +13,7 @@ const parseFieldOutputs = (output: string) => {
   }
 
   return {
-    noirMerklePoseidon2: BigInt(values[values.length - 2]),
+    noirMerklePoseidonT3: BigInt(values[values.length - 2]),
     noirRawPoseidon2T4: BigInt(values[values.length - 1]),
   };
 };
@@ -49,14 +49,14 @@ async function main() {
   const solidityParent = BigInt(
     await (poseidon as unknown as { hash: (inputs: [bigint, bigint]) => Promise<bigint> }).hash([left, right]),
   );
-  const { noirMerklePoseidon2, noirRawPoseidon2T4 } = noirHashes(left, right);
+  const { noirMerklePoseidonT3, noirRawPoseidon2T4 } = noirHashes(left, right);
 
   console.log(`left=${left.toString()}`);
   console.log(`right=${right.toString()}`);
   console.log(`solidityPoseidonT3=${solidityParent.toString()}`);
-  console.log(`noirMerklePoseidon2=${noirMerklePoseidon2.toString()}`);
+  console.log(`noirMerklePoseidonT3=${noirMerklePoseidonT3.toString()}`);
   console.log(`noirRawPoseidon2T4=${noirRawPoseidon2T4.toString()}`);
-  console.log(`domainSeparatedPoseidon2Match=${solidityParent === noirMerklePoseidon2}`);
+  console.log(`poseidonT3Match=${solidityParent === noirMerklePoseidonT3}`);
   console.log(`rawPoseidon2T4Match=${solidityParent === noirRawPoseidon2T4}`);
 }
 

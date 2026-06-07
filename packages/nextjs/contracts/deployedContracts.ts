@@ -460,7 +460,7 @@ const deployedContracts = {
       deployedOnBlock: 11008205,
     },
     ShieldedPool: {
-      address: "0x099c1e42700C3040A7B3dD0C77912EF09581e5F0",
+      address: "0xeC6adf2242D00e1a93ee6f715e3f0E2181f62f8e",
       abi: [
         {
           inputs: [
@@ -1261,10 +1261,10 @@ const deployedContracts = {
         contains: "contracts/BucketedNullifierSet.sol",
         nodeInfo: "contracts/BucketedNullifierSet.sol",
       },
-      deployedOnBlock: 11008297,
+      deployedOnBlock: 11009305,
     },
     TransferVerifier: {
-      address: "0xeC6a74FE46daC491b04e711C6F2bC541f5d4512E",
+      address: "0x0B51b44b12A27eDf3c7DF1A7a685b6de00CC3D76",
       abi: [
         {
           inputs: [],
@@ -1340,10 +1340,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11008207,
+      deployedOnBlock: 11009303,
     },
     WithdrawVerifier: {
-      address: "0xF27693Cf0c5bb293C7A05fb64cD29B6CeCba2cf8",
+      address: "0x1b45f707c495899F23316Caa36ac57C02eA5356a",
       abi: [
         {
           inputs: [],
@@ -1424,7 +1424,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11008209,
+      deployedOnBlock: 11009304,
     },
   },
 } as const;

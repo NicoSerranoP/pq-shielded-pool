@@ -1,5 +1,7 @@
 # dependencies
 node_modules
+# foundry generated output
+packages/foundry/out/
 
 # yarn
 .yarn/*
@@ -21,3 +23,6 @@ node_modules
 
 # cli
 dist
+
+# foundry generated output
+packages/foundry/out/

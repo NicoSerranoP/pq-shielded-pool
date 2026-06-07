@@ -1,11 +1,13 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 import * as fs from "fs";
+import * as path from "path";
 import password from "@inquirer/password";
 import { Wallet } from "ethers";
 import { deployments, ethers } from "hardhat";
 
 const WITHDRAW_NULLIFIER = 999999n;
+const CIRCUITS_DIR = path.resolve(__dirname, "../../circuits");
 
 type DepositFixture = {
   amount: bigint;
@@ -39,38 +41,37 @@ const getSigner = async () => {
   return wallet.connect(ethers.provider);
 };
 
-const readProof = (path: string) => fs.readFileSync(path, "utf8").trim();
+const readCircuitFile = (fixturePath: string) => fs.readFileSync(path.join(CIRCUITS_DIR, fixturePath), "utf8").trim();
+
+const readProof = (fixturePath: string) => readCircuitFile(fixturePath);
 
 const readDepositFixture = (): DepositFixture => {
-  const [commitmentRaw, amountRaw] = fs.readFileSync("../circuits/deposit/evm/inputs.txt", "utf8").trim().split(/\s+/);
+  const [commitmentRaw, amountRaw] = readCircuitFile("deposit/evm/inputs.txt").split(/\s+/);
 
   return {
     amount: BigInt(amountRaw),
     commitment: BigInt(commitmentRaw),
-    proof: readProof("../circuits/deposit/evm/proof.hex"),
+    proof: readProof("deposit/evm/proof.hex"),
   };
 };
 
 const readTransferFixture = (): TransferFixture => {
-  const [nullifierRaw, output0Raw, output1Raw, rootRaw] = fs
-    .readFileSync("../circuits/transfer/evm/inputs.txt", "utf8")
-    .trim()
-    .split(/\s+/);
+  const [nullifierRaw, output0Raw, output1Raw, rootRaw] = readCircuitFile("transfer/evm/inputs.txt").split(/\s+/);
 
   return {
     nullifier: BigInt(nullifierRaw),
     outputCommitments: [BigInt(output0Raw), BigInt(output1Raw)],
-    proof: readProof("../circuits/transfer/evm/proof.hex"),
+    proof: readProof("transfer/evm/proof.hex"),
     root: BigInt(rootRaw),
   };
 };
 
 const readWithdrawFixture = (): WithdrawFixture => {
-  const [amountRaw, rootRaw] = fs.readFileSync("../circuits/withdraw/evm/inputs.txt", "utf8").trim().split(/\s+/);
+  const [amountRaw, rootRaw] = readCircuitFile("withdraw/evm/inputs.txt").split(/\s+/);
 
   return {
     amount: BigInt(amountRaw),
-    proof: readProof("../circuits/withdraw/evm/proof.hex"),
+    proof: readProof("withdraw/evm/proof.hex"),
     root: BigInt(rootRaw),
   };
 };
@@ -97,6 +98,9 @@ async function main() {
   const poolDeployment = await deployments.get("ShieldedPool");
   const token = await ethers.getContractAt("SE2Token", tokenDeployment.address, signer);
   const pool = await ethers.getContractAt("ShieldedPool", poolDeployment.address, signer);
+  const depositVerifier = await ethers.getContractAt("DepositVerifier", await pool.depositVerifier(), signer);
+  const transferVerifier = await ethers.getContractAt("TransferVerifier", await pool.transferVerifier(), signer);
+  const withdrawVerifier = await ethers.getContractAt("WithdrawVerifier", await pool.withdrawVerifier(), signer);
 
   const deposit = readDepositFixture();
   const transfer = readTransferFixture();
@@ -107,10 +111,42 @@ async function main() {
   console.log(`withdrawRecipient=${withdrawRecipient}`);
   console.log(`token=${tokenDeployment.address}`);
   console.log(`pool=${poolDeployment.address}`);
+  console.log(`depositVerifier=${await pool.depositVerifier()}`);
+  console.log(`transferVerifier=${await pool.transferVerifier()}`);
+  console.log(`withdrawVerifier=${await pool.withdrawVerifier()}`);
   console.log(`assetId=${assetId.toString()}`);
 
   if (deposit.commitment !== transfer.root || deposit.commitment !== withdraw.root) {
     throw new Error("Fixture roots do not match the deposit commitment; refusing to run mixed fixture flow.");
+  }
+
+  console.log("\n[0/4] proof preflight");
+  const depositProofAccepted = await depositVerifier.verifyDepositProof(
+    deposit.amount,
+    assetId,
+    deposit.commitment,
+    deposit.proof,
+  );
+  const transferProofAccepted = await transferVerifier.verifyTransferProof(
+    transfer.root,
+    transfer.nullifier,
+    transfer.outputCommitments,
+    transfer.proof,
+  );
+  const withdrawProofAccepted = await withdrawVerifier.verifyWithdrawProof(
+    withdraw.root,
+    WITHDRAW_NULLIFIER,
+    withdrawRecipient,
+    withdraw.amount,
+    withdraw.proof,
+  );
+
+  console.log(`depositProofAccepted=${depositProofAccepted}`);
+  console.log(`transferProofAccepted=${transferProofAccepted}`);
+  console.log(`withdrawProofAccepted=${withdrawProofAccepted}`);
+
+  if (!depositProofAccepted || !transferProofAccepted || !withdrawProofAccepted) {
+    throw new Error("At least one fixture proof is rejected by the verifier wired into ShieldedPool.");
   }
 
   console.log("\n[1/4] mint/approve");

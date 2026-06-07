@@ -1,5 +1,5 @@
 use shared::constants::NOTE_COMMITMENT_DOMAIN;
-use shared::merkle::{binary_merkle_root, poseidon2};
+use shared::merkle::{binary_merkle_root, poseidon_t3};
 use shared::types::{MerkleProof, Note};
 use std::hash::poseidon2_permutation;
 
@@ -11,7 +11,7 @@ pub fn main(note: Note, merkle_proof: MerkleProof, value: pub u32, published_roo
     let commitment = poseidon2_permutation([NOTE_COMMITMENT_DOMAIN, precommitment, 0, 0], 4)[0];
 
     let computed_root = binary_merkle_root(
-        poseidon2,
+        poseidon_t3,
         commitment,
         merkle_proof.length,
         merkle_proof.indices,
