@@ -7,6 +7,7 @@ import { useAccount } from "wagmi";
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
+  ArrowTopRightOnSquareIcon,
   ArrowUpTrayIcon,
   ArrowsRightLeftIcon,
   CheckCircleIcon,
@@ -286,6 +287,8 @@ const shortenValue = (value: string, head = 10, tail = 6) => {
 const normalizeInput = (value: string, fallback: string) => value.trim() || fallback;
 
 const SEPOLIA_SHIELDED_POOL_ADDRESS = "0x286CD3713B16Cfc13C58A344d54BeA8eCF16dA54";
+const SEPOLIA_SHIELDED_POOL_ETHERSCAN_URL =
+  "https://sepolia.etherscan.io/address/0x286CD3713B16Cfc13C58A344d54BeA8eCF16dA54";
 
 const amountLabel = (amount: string) => `${normalizeInput(amount, "0")} wei`;
 
@@ -1010,11 +1013,22 @@ const Home: NextPage = () => {
             </div>
 
             <div className="mt-4 rounded-lg border border-[#d7ddd2] bg-[#f0f4ef] p-3">
-              <div className="mb-2 flex items-center gap-2 text-sm font-bold">
-                <CircleStackIcon className="h-5 w-5 text-[#2f7d68]" aria-hidden="true" />
-                Contract Mirror
+              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2 text-sm font-bold">
+                  <CircleStackIcon className="h-5 w-5 text-[#2f7d68]" aria-hidden="true" />
+                  Contract Mirror
+                </div>
+                <a
+                  className="btn btn-outline btn-xs w-fit gap-1 border-[#2f7d68] text-[#2f7d68]"
+                  href={SEPOLIA_SHIELDED_POOL_ETHERSCAN_URL}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4" aria-hidden="true" />
+                  Sepolia Etherscan
+                </a>
               </div>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2">
                 {chainStats.map(item => (
                   <div key={item.label} className="min-w-0">
                     <div className="text-xs text-base-content/60">{item.label}</div>
