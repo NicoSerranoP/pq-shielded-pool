@@ -2,6 +2,7 @@ import { ethers, deployments } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
+import { buildMerkleProof, buildMerkleRoot, toHex } from "./poseidon2";
 
 const CIRCUITS_DIR = path.resolve(__dirname, "../../../packages/circuits");
 const TRANSFER_DIR = path.join(CIRCUITS_DIR, "transfer");
@@ -40,6 +41,9 @@ function generateProof(
   nullifier: string,
   commitments: string[],
   root: string,
+  merkleLength: number,
+  merkleIndices: boolean[],
+  merkleSiblings: string[],
 ): string {
   const cli = getProvekitCli();
   const proofPath = path.join(TRANSFER_DIR, "proof.np");
@@ -47,7 +51,12 @@ function generateProof(
   const proverTomlPath = path.join(TRANSFER_DIR, "Prover.toml");
 
   const indicesArr = Array(MAX_DEPTH).fill(false);
-  const siblingsArr = Array(MAX_DEPTH).fill(0);
+  const siblingsArr: string[] = Array(MAX_DEPTH).fill('"0"');
+
+  for (let i = 0; i < merkleLength; i++) {
+    indicesArr[i] = merkleIndices[i];
+    siblingsArr[i] = `"${merkleSiblings[i]}"`;
+  }
 
   const newNotesToml = newNotes
     .map(
@@ -65,7 +74,7 @@ published_root = "${root}"
 
 [merkle_proof]
 indices = [${indicesArr.join(", ")}]
-length = 0
+length = ${merkleLength}
 siblings = [${siblingsArr.join(", ")}]
 
 ${newNotesToml}
@@ -102,6 +111,8 @@ async function main() {
   const receiverAddress = process.env.RECEIVER_ADDRESS;
   if (!receiverAddress) throw new Error("RECEIVER_ADDRESS env var required");
   const receiverNonce = parseInt(process.env.RECEIVER_NONCE ?? "1");
+  // changeNonce must produce a commitment never seen before in the tree.
+  // We defer setting it until after we know treeSize (see below).
 
   const senderField = BigInt(signer.address).toString();
   const receiverField = BigInt(receiverAddress).toString();
@@ -114,15 +125,57 @@ async function main() {
   const { commitment: receiverCommitment } = computeNoteValues(amount, receiverField, receiverNonce, assetId);
   console.log("Receiver's commitment:", receiverCommitment);
 
-  // Second output: zero-value change note back to Sender
-  const changeNonce = parseInt(process.env.CHANGE_NONCE ?? "2");
+  const treeSize = Number(await pool.treeSize());
+  const treeDepth = Number(await pool.treeDepth());
+  // Default changeNonce = treeSize + 10000, guaranteed unique (tree only grows).
+  const changeNonce = parseInt(process.env.CHANGE_NONCE ?? String(treeSize + 10_000));
   const { commitment: changeCommitment } = computeNoteValues(0, senderField, changeNonce, assetId);
 
   const root = await pool.currentRoot();
   const rootHex = "0x" + root.toString(16);
+  console.log("Tree size:", treeSize, "  depth:", treeDepth);
   console.log("Merkle root:", rootHex);
 
-  // NOTE: length=0 Merkle proof only valid when Sender's note is the sole leaf in the tree.
+  // --- Build Merkle proof for sender's note ---
+  let merkleLength: number;
+  let merkleIndices: boolean[];
+  let merkleSiblings: string[];
+
+  if (treeSize <= 1) {
+    merkleLength = 0;
+    merkleIndices = [];
+    merkleSiblings = [];
+  } else {
+    const leafMap = new Map<number, bigint>();
+    for (const e of await pool.queryFilter(pool.filters.Deposit())) {
+      leafMap.set(Number(e.args.leafIndex), BigInt(e.args.commitment));
+    }
+    for (const e of await pool.queryFilter(pool.filters.Transfer())) {
+      const firstIdx = Number(e.args.firstLeafIndex);
+      for (let i = 0; i < (e.args.outputCommitments as bigint[]).length; i++) {
+        leafMap.set(firstIdx + i, BigInt((e.args.outputCommitments as bigint[])[i]));
+      }
+    }
+
+    // Verify our TypeScript Poseidon2 matches the on-chain root
+    const computedRoot = buildMerkleRoot(leafMap, treeDepth);
+    if (computedRoot !== root) {
+      throw new Error(
+        `Poseidon2 root mismatch! TS computed: ${toHex(computedRoot)}, on-chain: ${toHex(root)}\n` +
+          `Leaf map: ${JSON.stringify([...leafMap.entries()].map(([k, v]) => [k, toHex(v)]))}`,
+      );
+    }
+    console.log("Merkle root verified ✓");
+
+    const senderLeafIndex = Number(await pool.commitmentIndex(BigInt(senderCommitment)));
+    console.log("Sender leaf index:", senderLeafIndex);
+
+    const proof = buildMerkleProof(leafMap, senderLeafIndex, treeDepth);
+    merkleLength = proof.length;
+    merkleIndices = proof.indices;
+    merkleSiblings = proof.siblings.map(toHex);
+  }
+
   const proof = generateProof(
     { value: amount, owner: senderField, nonce, asset: assetId },
     [
@@ -132,6 +185,9 @@ async function main() {
     nullifier,
     [receiverCommitment, changeCommitment],
     rootHex,
+    merkleLength,
+    merkleIndices,
+    merkleSiblings,
   );
 
   console.log("Transferring...");
@@ -140,29 +196,15 @@ async function main() {
     BigInt(nullifier),
     [BigInt(receiverCommitment), BigInt(changeCommitment)],
     proof,
-    {
-      gasLimit: 3_000_000,
-    },
+    { gasLimit: 3_000_000 },
   );
   const receipt = await tx.wait();
 
-  const transferLog = receipt?.logs.find(l => {
-    try {
-      pool.interface.parseLog(l as never);
-      return true;
-    } catch {
-      return false;
-    }
-  });
-  const transferEvent = transferLog ? pool.interface.parseLog(transferLog as never) : null;
-  const firstLeafIndex = transferEvent?.args?.firstLeafIndex ?? BigInt(1);
-
   console.log("Transfer successful! tx:", receipt?.hash);
-  console.log("\nSend Receiver these values to withdraw:");
+  console.log("\nReceiver's note (share with recipient for withdrawal):");
   console.log(`  AMOUNT=${amount}`);
   console.log(`  NONCE=${receiverNonce}`);
-  console.log(`  LEAF_INDEX=${firstLeafIndex.toString()}`);
-  console.log(`  SIBLINGS=${senderCommitment},${changeCommitment}`);
+  console.log(`  OWNER=${receiverAddress}`);
 }
 
 main().catch(console.error);
