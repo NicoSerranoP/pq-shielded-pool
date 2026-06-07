@@ -144,56 +144,56 @@ contract ProvekitGroth16Verifier {
     // ------------------------------------------------------------------
 
     // Groth16 alpha (G1, positive).
-    uint256 internal constant ALPHA_X = 0x0f289845bb7528c1888ccb8831b60929b1c8a2044b65958014122843478538b7;
-    uint256 internal constant ALPHA_Y = 0x2ae03f6591d1e9a1e0cdae0097cb8cb8d2cfc34eb6dedcffc579a750e0f588c0;
+    uint256 internal constant ALPHA_X = 0x04dbd400fdaaae9e5c32a0963968f2bc8fa2334797d2d0cec866bbefdbbaed74;
+    uint256 internal constant ALPHA_Y = 0x08f9e82ddda70eb71f9b8e76e8b7b776aebfe3776db4aae91d993969d8aa49c6;
 
     // Groth16 beta (G2, NEGATED so we can write e(α, -β) directly).
-    uint256 internal constant BETA_NEG_X_0 = 0x0c08452fed64238fb0d0b03ce5ac39a39d4b3ba48722e3d042bc5a0f6c323f06;
-    uint256 internal constant BETA_NEG_X_1 = 0x1d96a7174489fe91304c81d5722ab297d62d1ca9bb94a04e95f0a08f46ee4c9e;
-    uint256 internal constant BETA_NEG_Y_0 = 0x0047518738f0c2c595a20cc0c6dec1fdf4c19b753c30c3029b76ee461a240718;
-    uint256 internal constant BETA_NEG_Y_1 = 0x195ba66e8949024fd844445daf972cce581d8b8774d8f9afa5890b178d6db05e;
+    uint256 internal constant BETA_NEG_X_0 = 0x01164cc398950314251c69c9c66c5942fb0c2c65fc422251aa40804cf92a63d6;
+    uint256 internal constant BETA_NEG_X_1 = 0x1aac9e5fa19c3b04ea5dc424a0f973764d65025d79604192c23c6d9ca262196b;
+    uint256 internal constant BETA_NEG_Y_0 = 0x26b0e17ea186e5e31166f8f60de85e7351fffd679ebd54e9e155789559e3edce;
+    uint256 internal constant BETA_NEG_Y_1 = 0x186324dffa09f2138fdb208ddf9045c4e7ff8243daf1c572fa5b24b812ba485b;
 
     // Groth16 gamma (G2, NEGATED).
-    uint256 internal constant GAMMA_NEG_X_0 = 0x2f078e95bcae4d7c62c8dc35ef4620b25e5845d7bd211e32e889ebd139528e2c;
-    uint256 internal constant GAMMA_NEG_X_1 = 0x0ed7e0a3a93c2d6f6c64d18bbd6ec99f4d6f55f856249673f837eaa899e2a5b1;
-    uint256 internal constant GAMMA_NEG_Y_0 = 0x12197ed26ef0dacfdb3b84045feb52f6e774ed9999c01d40915c17a24174f009;
-    uint256 internal constant GAMMA_NEG_Y_1 = 0x2c5729767447ba27b19695bd0be6fc803ebc4298fbe400fd561729bbe1f24da5;
+    uint256 internal constant GAMMA_NEG_X_0 = 0x18e1762362ac12b1e06bb66e403decedd62f78149adc4297523b047485b813fc;
+    uint256 internal constant GAMMA_NEG_X_1 = 0x1d6e1cc847ba8cc597005fb0c938b2d409b4af9d2351952aa42bc78dcd2a11c3;
+    uint256 internal constant GAMMA_NEG_Y_0 = 0x225acd41ff59bb0d5cef218f027e4838ec3183eed4db99987c8a10115eb719e2;
+    uint256 internal constant GAMMA_NEG_Y_1 = 0x04e9680cb7535fb4e7e9b9f0ccdd803e791e65eb11d0847b2f211cafb4b21b39;
 
     // Groth16 delta (G2, NEGATED).
-    uint256 internal constant DELTA_NEG_X_0 = 0x29d9ae38a648c35597fcc1e962a3de238c4cdc9ff8e61b322d7fbfbffc64de31;
-    uint256 internal constant DELTA_NEG_X_1 = 0x174421ab3aa3684a81704932d0cc5a8903ffe448cb80586f5377c0d12505fb7a;
-    uint256 internal constant DELTA_NEG_Y_0 = 0x2e1cbb725392326d33a6cb2d0dbd29bd4ad4ed2f8225125e9f3de55842181cbf;
-    uint256 internal constant DELTA_NEG_Y_1 = 0x1e25b7c4249f54b366fafbf8263aed7de63aa9abd59df28d2cedf3209a97ddf8;
+    uint256 internal constant DELTA_NEG_X_0 = 0x09f8bcc7926cef677062d1dfc72e24ff95d3e6f659cb85dbd2a282393d3c8f6c;
+    uint256 internal constant DELTA_NEG_X_1 = 0x2933748182476e9e7b11c7ddd75020b75c00979d0ae198d393e0799ff66af56f;
+    uint256 internal constant DELTA_NEG_Y_0 = 0x0ec9508e7037e4cccf115008f3bcfa2f83478f3b3b0de41f3524e9f7d406d8d2;
+    uint256 internal constant DELTA_NEG_Y_1 = 0x23e59c66776e19dba7a16e22cd46407a332d5bb9ed4f5cc4d2001b9a25eb7185;
 
     // K[0] (constant term of the public-input MSM).
-    uint256 internal constant K0_X = 0x07dfad5fe072322cac2a531bd03abcde6420b6b553cea606cd3bfda307cf1375;
-    uint256 internal constant K0_Y = 0x06dde4a41002e27cc3a97f02a6fb050075f33bec60ac200d8496f19b50e83a3d;
+    uint256 internal constant K0_X = 0x1b764ed72ff9536aefca01d37c033aeb222443c75b861f92a3a7472f9125066c;
+    uint256 internal constant K0_Y = 0x0f4f10f521c6526c5989f7c6fcfa43430ef3234beaa1ebcab534025b7d2a7bdf;
 
     // K[1..1+N_PUB_EXTENDED] — one G1 point per extended public input.
     // CODEGEN: emit N_PUB_EXTENDED entries (PUB_0_X, PUB_0_Y, ..., PUB_{N-1}_*).
     //<BEGIN_CODEGEN:PUB_BASES>
-    uint256 internal constant PUB_0_X = 0x055553d3778b9577f76bf9aaa00359008846f2b6736ce2e0a94da3f52a405449; // K[1] — public input #0
-    uint256 internal constant PUB_0_Y = 0x2460fbb7cc7cf39c4f47a040ed0f9129d0d03e43d36542422d217f94f87b4100; // K[1] — public input #0
-    uint256 internal constant PUB_1_X = 0x144277380aa2fae4e9ab39de8e5fc97e8f94b8c8911e0308fef876db2c096953; // K[2] — public input #1
-    uint256 internal constant PUB_1_Y = 0x1838bbb4621c8250983906d17491ef6d0106bf4bb5af8c268343501cb6a0f8a5; // K[2] — public input #1
-    uint256 internal constant PUB_2_X = 0x202a70e616da12b4e35c1a81792a54160a70674f3e2e8b4442ccd53e66af147d; // K[3] — public input #2
-    uint256 internal constant PUB_2_Y = 0x0a9f7fa95845248216fd2dc3021211fb8f1f7292bb5a7bc66b0cdf35fcf3f08f; // K[3] — public input #2
-    uint256 internal constant PUB_3_X = 0x1adde85008845757bd57e6580df731efd2ae984da99e14a0458fb1446ddfb2ba; // K[4] — public input #3
-    uint256 internal constant PUB_3_Y = 0x009b5e70ac0a183965177c7718f465de45dea5a3ed85854a01a713fc8731c2b6; // K[4] — public input #3
-    uint256 internal constant PUB_4_X = 0x12e67b49f8defcfff02d0710e4e8e6cd05618d69b3488cf1e093ebace93e28d6; // K[5] — challenge #0
-    uint256 internal constant PUB_4_Y = 0x2014c162e8d89608a6169731d25f8280404f7093b3518cfaf44269408c6b5828; // K[5] — challenge #0
+    uint256 internal constant PUB_0_X = 0x1734946021c343391faab54efcb53db57a4d38a041071d558a3a03ba96109242; // K[1] — public input #0
+    uint256 internal constant PUB_0_Y = 0x25e4c37efcaf262fa1cbf4a21dbdccde142e9342394046c57586caf9a42dc020; // K[1] — public input #0
+    uint256 internal constant PUB_1_X = 0x30117db6a0cad3fcd6ee30e5bd1bb79833ebf45b794cb0acdf604b8b3c08bd33; // K[2] — public input #1
+    uint256 internal constant PUB_1_Y = 0x275582e89600ce0ac226c6c8b432793986e8e4ae08f53db8b4571cac390d40a2; // K[2] — public input #1
+    uint256 internal constant PUB_2_X = 0x20edc67f143d47a1402a1792a4444cbd9781643cc2de362745b538d947bd2107; // K[3] — public input #2
+    uint256 internal constant PUB_2_Y = 0x29e54db82b9aefda2429179b6c78b8fd1c98bb1f7f7c6daf6245b267656f64f9; // K[3] — public input #2
+    uint256 internal constant PUB_3_X = 0x234661b8c54cfddc914e9ce95cb5fc232a2b8786230f7ef4a6ed500c7702cda6; // K[4] — public input #3
+    uint256 internal constant PUB_3_Y = 0x1dc929b98db9c35f9a4a379af58d706d2e266ccb4598315a65b866b19a918872; // K[4] — public input #3
+    uint256 internal constant PUB_4_X = 0x2f422ea7ca7cfe326dd1ca0c771979370dc2d46ae436849f71623ea05249cf48; // K[5] — challenge #0
+    uint256 internal constant PUB_4_Y = 0x0aa634e1ef48276d6e26081211cb2686d362d1ae5bba00aa8502065c73929fd7; // K[5] — challenge #0
     //<END_CODEGEN:PUB_BASES>
 
     // Pedersen verifying key (single-commitment template).
     // G is in G2; GSigmaNeg = -σ·G also in G2.
-    uint256 internal constant PEDERSEN_G_X_0          = 0x267df5ef70ddaef7363d29723aa588c286ee9dc47be7ca713f3fac4d7a3b3363;
-    uint256 internal constant PEDERSEN_G_X_1          = 0x246f76f2fcd4ce904a0bf0586376b9071c6214f814a87d676835cc6cfe566233;
-    uint256 internal constant PEDERSEN_G_Y_0          = 0x2359ea8518b4d24e709505722f0feb9879926b6ba2d6e7d601a88b29c1ed3948;
-    uint256 internal constant PEDERSEN_G_Y_1          = 0x2c3f1eae43399d0359033617e54e8e5e645ec52bd8a53dfdeff350fc909fa5ad;
-    uint256 internal constant PEDERSEN_GSIGMA_NEG_X_0 = 0x17d43b9a389605ab371b8e3a7da3adacf9184e2e4dc0976eaa529428a1bce697;
-    uint256 internal constant PEDERSEN_GSIGMA_NEG_X_1 = 0x0b6d8868d9fcbfa61e85f2393ecc2103938c7cbe6ea0f7735eb524a1214610a9;
-    uint256 internal constant PEDERSEN_GSIGMA_NEG_Y_0 = 0x2784b86fc85c2eb5e175cc61c3229160e41fbae71b4cfc1e4e9f674cd17edd28;
-    uint256 internal constant PEDERSEN_GSIGMA_NEG_Y_1 = 0x2192cf9dc4f8060d98ab148d9ba8dcb7e61874b1352f2d2fe219c858e27b10f9;
+    uint256 internal constant PEDERSEN_G_X_0          = 0x2d8b23c512bad38e0adcf6117eefbbbfb936f465bddf7ab7dcd6470d77e0493d;
+    uint256 internal constant PEDERSEN_G_X_1          = 0x27bca2174bf439a837537e97d63cdd21421b4242cfa0399ec1b492bfe1ca5897;
+    uint256 internal constant PEDERSEN_G_Y_0          = 0x020ea724635e98368d978be9c184a8fe8cc83cb7343fe061366c78ec74d53e10;
+    uint256 internal constant PEDERSEN_G_Y_1          = 0x0033d0ae972d746556b4c09ac1516f481e326f3c9686196c3b1ebaac9199e9f1;
+    uint256 internal constant PEDERSEN_GSIGMA_NEG_X_0 = 0x11898c6cb755c0593f6dfa50b0d41d13d9853d36a6dd048265233446d9107798;
+    uint256 internal constant PEDERSEN_GSIGMA_NEG_X_1 = 0x04f8ffe78d0f20ba78f17b60a424ebc4d3824c63892447c2b95c1211756df2fb;
+    uint256 internal constant PEDERSEN_GSIGMA_NEG_Y_0 = 0x265ff4c138dc79951f0cd5233769d7279d551840bb1f8fb302d83f6b129e48d3;
+    uint256 internal constant PEDERSEN_GSIGMA_NEG_Y_1 = 0x1219ec42b73ed27cc95f08f30739bd66b907082b5462ca81e5cfeb8c4d5495ac;
 
     // ------------------------------------------------------------------
     // Errors.
