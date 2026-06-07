@@ -7,43 +7,22 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { InternalLeanIMT, LeanIMTData } from "@zk-kit/lean-imt.sol/InternalLeanIMT.sol";
 import { BucketedNullifierSet } from "./BucketedNullifierSet.sol";
 
-/// @notice Verifier contract for deposit note well-formedness proofs.
-/// @dev The generated zk verifier should prove that `commitment` commits to the
-/// public `amount` and `assetId` plus hidden note owner data and randomness.
+/// @notice Generated deposit verifier interface.
+/// @dev Current generated public inputs are `[commitment, amount]`.
 interface IDepositVerifier {
-    function verifyDepositProof(
-        uint256 amount,
-        uint256 assetId,
-        uint256 commitment,
-        bytes calldata proof
-    ) external view returns (bool);
+    function verifyProof(bytes calldata proof, uint256[2] calldata publicInputs) external view;
 }
 
-/// @notice Verifier contract for private transfer proofs.
-/// @dev The generated zk verifier should prove that the input nullifier is
-/// derived from a private note commitment included in `root`, and that the
-/// output commitments preserve value for this pool's asset.
+/// @notice Generated transfer verifier interface.
+/// @dev Current generated public inputs are `[inputNullifier, output0, output1, root]`.
 interface ITransferVerifier {
-    function verifyTransferProof(
-        uint256 root,
-        uint256 inputNullifier,
-        uint256[] calldata outputCommitments,
-        bytes calldata proof
-    ) external view returns (bool);
+    function verifyProof(bytes calldata proof, uint256[4] calldata publicInputs) external view;
 }
 
-/// @notice Verifier contract for private withdrawal proofs.
-/// @dev The generated zk verifier should prove that the input nullifier is
-/// derived from a private note commitment included in `root`, and that the
-/// note authorizes the public withdrawal amount and recipient.
+/// @notice Generated withdrawal verifier interface.
+/// @dev Current generated public inputs are `[amount, root]`.
 interface IWithdrawVerifier {
-    function verifyWithdrawProof(
-        uint256 root,
-        uint256 inputNullifier,
-        address recipient,
-        uint256 amount,
-        bytes calldata proof
-    ) external view returns (bool);
+    function verifyProof(bytes calldata proof, uint256[2] calldata publicInputs) external view;
 }
 
 /// @notice Shielded pool using a Lean Incremental Merkle Tree.
@@ -52,6 +31,7 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
     using SafeERC20 for IERC20;
 
     uint256 public constant ROOT_HISTORY_SIZE = 100;
+    uint256 public constant TRANSFER_OUTPUT_COMMITMENT_COUNT = 2;
 
     IERC20 public immutable token;
     IDepositVerifier public immutable depositVerifier;
@@ -76,6 +56,7 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
     error InvalidWithdrawProof();
     error UnknownMerkleRoot();
     error NoOutputCommitments();
+    error InvalidOutputCommitmentCount();
     error InvalidNullifier();
     error NullifierAlreadySpent(uint256 nullifier);
     error InvalidOutputCommitment();
@@ -139,7 +120,7 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
     /// @param amount The public ERC20 amount transferred into the pool.
     /// @param depositAssetId The public asset id this note represents.
     /// @param commitment The note commitment inserted as a LeanIMT leaf.
-    /// @param zkProof A proof that the commitment is well-formed for amount and asset id.
+    /// @param zkProof A proof that matches the generated deposit verifier public inputs.
     /// @return leafIndex The inserted commitment's tree index.
     /// @return newRoot The Merkle root after insertion.
     function deposit(
@@ -156,9 +137,7 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
             revert InvalidAssetId();
         }
 
-        if (!depositVerifier.verifyDepositProof(amount, depositAssetId, commitment, zkProof)) {
-            revert InvalidDepositProof();
-        }
+        _verifyDepositProof(amount, commitment, zkProof);
 
         uint256 balanceBefore = token.balanceOf(address(this));
 
@@ -200,9 +179,12 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
             revert NoOutputCommitments();
         }
 
-        if (!transferVerifier.verifyTransferProof(root, inputNullifier, outputCommitments, zkProof)) {
-            revert InvalidTransferProof();
+        if (outputCommitments.length != TRANSFER_OUTPUT_COMMITMENT_COUNT) {
+            revert InvalidOutputCommitmentCount();
         }
+
+        _verifyOutputCommitments(outputCommitments);
+        _verifyTransferProof(root, inputNullifier, outputCommitments, zkProof);
 
         _spendNullifier(inputNullifier);
 
@@ -218,7 +200,7 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
     /// @param inputNullifier Nullifier for the note consumed by this withdrawal.
     /// @param recipient Public recipient that receives withdrawn tokens.
     /// @param amount Public ERC20 amount withdrawn from the pool.
-    /// @param zkProof A proof of inclusion, nullifier correctness, and withdrawal authorization.
+    /// @param zkProof A proof that matches the generated withdrawal verifier public inputs.
     function withdraw(
         uint256 root,
         uint256 inputNullifier,
@@ -242,9 +224,7 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
             revert InvalidAmount();
         }
 
-        if (!withdrawVerifier.verifyWithdrawProof(root, inputNullifier, recipient, amount, zkProof)) {
-            revert InvalidWithdrawProof();
-        }
+        _verifyWithdrawProof(root, amount, zkProof);
 
         _spendNullifier(inputNullifier);
         token.safeTransfer(recipient, amount);
@@ -302,6 +282,55 @@ contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
         }
 
         _pushNullifier(nullifier);
+    }
+
+    function _verifyDepositProof(uint256 amount, uint256 commitment, bytes calldata proof) private view {
+        uint256[2] memory publicInputs = [commitment, amount];
+
+        try depositVerifier.verifyProof(proof, publicInputs) {}
+        catch {
+            revert InvalidDepositProof();
+        }
+    }
+
+    function _verifyTransferProof(
+        uint256 root,
+        uint256 inputNullifier,
+        uint256[] calldata outputCommitments,
+        bytes calldata proof
+    ) private view {
+        uint256[4] memory publicInputs = [
+            inputNullifier,
+            outputCommitments[0],
+            outputCommitments[1],
+            root
+        ];
+
+        try transferVerifier.verifyProof(proof, publicInputs) {}
+        catch {
+            revert InvalidTransferProof();
+        }
+    }
+
+    function _verifyWithdrawProof(uint256 root, uint256 amount, bytes calldata proof) private view {
+        uint256[2] memory publicInputs = [amount, root];
+
+        try withdrawVerifier.verifyProof(proof, publicInputs) {}
+        catch {
+            revert InvalidWithdrawProof();
+        }
+    }
+
+    function _verifyOutputCommitments(uint256[] calldata outputCommitments) private pure {
+        for (uint256 i = 0; i < outputCommitments.length; ) {
+            if (outputCommitments[i] == 0) {
+                revert InvalidOutputCommitment();
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     function _insertOutputCommitments(uint256[] calldata outputCommitments) private returns (uint256 root) {

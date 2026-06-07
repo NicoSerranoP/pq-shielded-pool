@@ -6,16 +6,15 @@ import { IDepositVerifier } from "../ShieldedPool.sol";
 contract MockDepositVerifier is IDepositVerifier {
     bool public shouldAccept = true;
 
+    error MockProofInvalid();
+
     function setShouldAccept(bool shouldAccept_) external {
         shouldAccept = shouldAccept_;
     }
 
-    function verifyDepositProof(
-        uint256 amount,
-        uint256 assetId,
-        uint256 commitment,
-        bytes calldata proof
-    ) external view returns (bool) {
-        return shouldAccept && amount != 0 && assetId != 0 && commitment != 0 && proof.length != 0;
+    function verifyProof(bytes calldata proof, uint256[2] calldata publicInputs) external view {
+        if (!shouldAccept || proof.length == 0 || publicInputs[0] == 0 || publicInputs[1] == 0) {
+            revert MockProofInvalid();
+        }
     }
 }

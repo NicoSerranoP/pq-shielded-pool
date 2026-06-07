@@ -6,16 +6,22 @@ import { ITransferVerifier } from "../ShieldedPool.sol";
 contract MockTransferVerifier is ITransferVerifier {
     bool public shouldAccept = true;
 
+    error MockProofInvalid();
+
     function setShouldAccept(bool shouldAccept_) external {
         shouldAccept = shouldAccept_;
     }
 
-    function verifyTransferProof(
-        uint256 root,
-        uint256 inputNullifier,
-        uint256[] calldata outputCommitments,
-        bytes calldata proof
-    ) external view returns (bool) {
-        return shouldAccept && root != 0 && inputNullifier != 0 && outputCommitments.length != 0 && proof.length != 0;
+    function verifyProof(bytes calldata proof, uint256[4] calldata publicInputs) external view {
+        if (
+            !shouldAccept ||
+            proof.length == 0 ||
+            publicInputs[0] == 0 ||
+            publicInputs[1] == 0 ||
+            publicInputs[2] == 0 ||
+            publicInputs[3] == 0
+        ) {
+            revert MockProofInvalid();
+        }
     }
 }

@@ -2,14 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import {ProvekitGroth16Verifier as DepositGroth16Verifier} from "circuits/deposit/Verifier.sol";
+import {ProvekitGroth16Verifier as WithdrawGroth16Verifier} from "circuits/withdraw/Verifier.sol";
 import "./utils/PublicInputsParser.sol";
 
-contract DepositVerifierTest is Test {
-    DepositGroth16Verifier verifier;
+contract WithdrawVerifierTest is Test {
+    WithdrawGroth16Verifier verifier;
 
     function setUp() public {
-        verifier = new DepositGroth16Verifier();
+        verifier = new WithdrawGroth16Verifier();
     }
 
     function test_deploys() public view {
@@ -17,10 +17,10 @@ contract DepositVerifierTest is Test {
     }
 
     function test_verifyProof() public view {
-        string memory proofHex = vm.readFile("../circuits/deposit/evm/proof.hex");
+        string memory proofHex = vm.readFile("../circuits/withdraw/evm/proof.hex");
         bytes memory proofBytes = vm.parseBytes(proofHex);
 
-        string memory inputsRaw = vm.readFile("../circuits/deposit/evm/inputs.txt");
+        string memory inputsRaw = vm.readFile("../circuits/withdraw/evm/inputs.txt");
         uint256[2] memory inputs = abi.decode(
             PublicInputsParser.parsePublicInputsAndEncode(inputsRaw, 2),
             (uint256[2])
@@ -30,11 +30,11 @@ contract DepositVerifierTest is Test {
     }
 
     function test_invalidProofReverts() public {
-        string memory proofHex = vm.readFile("../circuits/deposit/evm/proof.hex");
+        string memory proofHex = vm.readFile("../circuits/withdraw/evm/proof.hex");
         bytes memory proofBytes = vm.parseBytes(proofHex);
         proofBytes[0] = bytes1(uint8(proofBytes[0]) ^ 1);
 
-        string memory inputsRaw = vm.readFile("../circuits/deposit/evm/inputs.txt");
+        string memory inputsRaw = vm.readFile("../circuits/withdraw/evm/inputs.txt");
         uint256[2] memory inputs = abi.decode(
             PublicInputsParser.parsePublicInputsAndEncode(inputsRaw, 2),
             (uint256[2])
