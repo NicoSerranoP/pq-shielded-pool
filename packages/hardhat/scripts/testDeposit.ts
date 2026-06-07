@@ -9,8 +9,8 @@ async function main() {
   const tokenDep = await deployments.get("SE2Token");
   const token = await ethers.getContractAt("SE2Token", tokenDep.address);
 
-  const proof = fs.readFileSync("../circuits/evm/proof.hex", "utf8").trim();
-  const commitment = BigInt("6966757832092678110567972609532936655714555838012441506758642728623502836951");
+  const proof = fs.readFileSync("../circuits/deposit/evm/proof.hex", "utf8").trim();
+  const commitment = BigInt("14765692717966284308695316414323882997709571051230519444909846258304647480416");
 
   console.log("Minting tokens...");
   await (await token.mint(signer.address, ethers.parseEther("1000"), { gasLimit: 100000 })).wait();
