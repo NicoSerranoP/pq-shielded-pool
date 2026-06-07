@@ -21,3 +21,6 @@ node_modules
 
 # cli
 dist
+
+# local external proving tool checkout
+/provekit/
