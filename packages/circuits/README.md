@@ -15,12 +15,13 @@ git clone https://github.com/worldfnd/provekit
 cd provekit
 # Build from source
 cargo build --release
+# Build provekit-cli
+cargo build -p provekit-cli --release
 # Create a directory for the binary
-mkdir prove-kit
-mkdir prove-kit/bin
+mkdir -p "$HOME/prove-kit/bin"
 # Move binary and library to a directory in your PATH
-mv <REPO_PATH>/provekit/target/release/provekit-cli $HOME/prove-kit/bin/
-mv <REPO_PATH>/provekit/target/release/provekit-cli.d $HOME/prove-kit/bin/
+mv /target/release/provekit-cli $HOME/prove-kit/bin/
+mv /target/release/provekit-cli.d $HOME/prove-kit/bin/
 # Make the binary executable
 chmod +x $HOME/prove-kit/bin/provekit-cli
 # Add the binary to your PATH
@@ -33,7 +34,7 @@ provekit-cli --help
 
 ## Prepare, prove and verify the circuits (only Provekit)
 ```bash
-cd circuits
+cd circuits/<ACTION_CIRCUIT>
 
 provekit-cli prepare
 provekit-cli prove
