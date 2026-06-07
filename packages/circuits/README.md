@@ -8,7 +8,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 # Install noirup
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
 # Install specific noir version compatible with Provekit
-noirup --version v1.0.0-beta.11
+noirup --version v1.0.0-beta.19
 # Clone the repository
 git clone https://github.com/worldfnd/provekit
 
@@ -43,11 +43,15 @@ provekit-cli verify
 
 ## Prepare, prove and verify the circuits (Provekit wrapped in Groth16)
 ```bash
-cd circuits
+nargo build
 
-provekit-cli prepare target/deposit.json --backend groth16
+cd circuits/<ACTION_CIRCUIT>
 
-provekit-cli export-solidity --pkv deposit.pkv --template ProvekitGroth16Verifier.sol --out Verifier.sol
+provekit-cli prepare ../target/<ACTION_CIRCUIT>.json --backend groth16
+
+provekit-cli export-solidity --pkv <ACTION_CIRCUIT>.pkv --template ../ProvekitGroth16Verifier.sol --out Verifier.sol
+
+provekit-cli prove
 
 provekit-cli export-evm-proof --proof proof.np --out-dir evm
 ```

@@ -1,4 +1,4 @@
-use shared::constants::{MAX_DEPTH, MERKLE_TREE_DOMAIN};
+use crate::constants::{MAX_DEPTH, MERKLE_TREE_DOMAIN};
 use std::hash::poseidon2_permutation;
 
 /*
