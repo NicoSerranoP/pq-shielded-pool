@@ -1428,7 +1428,7 @@ const deployedContracts = {
   },
   11155111: {
     DepositVerifierWrapper: {
-      address: "0xDaF29B521d82b9c4a1212d4369d3Ea9fDBD9A010",
+      address: "0xa6BBE187e0dC3558672F439F978367Bb32b47D12",
       abi: [
         {
           inputs: [
@@ -1458,7 +1458,7 @@ const deployedContracts = {
           inputs: [
             {
               internalType: "uint256",
-              name: "",
+              name: "amount",
               type: "uint256",
             },
             {
@@ -1490,7 +1490,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11005103,
+      deployedOnBlock: 11006214,
     },
     MockTransferVerifier: {
       address: "0xFEE37A10E55e785433091a723467236d3D4be356",
@@ -1658,7 +1658,7 @@ const deployedContracts = {
       deployedOnBlock: 11005106,
     },
     ProvekitGroth16Verifier: {
-      address: "0xb9e1d55d6d825F4Ae9339bD2e28bE9e7D4c910F7",
+      address: "0xEaF9cDC73188676807a2DA5cE5D6ED88B6eAF631",
       abi: [
         {
           inputs: [],
@@ -1688,9 +1688,9 @@ const deployedContracts = {
               type: "bytes",
             },
             {
-              internalType: "uint256[1]",
+              internalType: "uint256[2]",
               name: "input",
-              type: "uint256[1]",
+              type: "uint256[2]",
             },
           ],
           name: "verifyProof",
@@ -1700,7 +1700,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11005102,
+      deployedOnBlock: 11006213,
     },
     SE2Token: {
       address: "0xef86B863932DAE92710AE63E3F2aa9F17A8fC3e8",
@@ -2051,7 +2051,7 @@ const deployedContracts = {
       deployedOnBlock: 11005101,
     },
     ShieldedPool: {
-      address: "0xe695A9C458dBE676b0f65a5Cec8CB90C3EdC5378",
+      address: "0xe978f84EAf2d99d2A7ecc2980F3fCF9C259D8801",
       abi: [
         {
           inputs: [

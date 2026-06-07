@@ -1,1 +1,7 @@
 *.gz
+
+# Generated proof artifacts (overwritten on every test run)
+**/proof.np
+**/evm/proof.hex
+**/evm/inputs.txt
+**/Prover.toml
