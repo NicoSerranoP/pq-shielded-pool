@@ -80,7 +80,7 @@ async function main() {
 
   const amount = 9;
   const assetId = 1;
-  const nonce = 1; //TODO: make this incremental, needs to be unique always
+  const nonce = 2; //TODO: make this incremental, needs to be unique always
   const ownerField = BigInt(signer.address).toString();
 
   console.log("Computing commitment...");
