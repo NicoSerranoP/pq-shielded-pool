@@ -14,6 +14,7 @@
     "account:reveal-pk": "yarn workspace @se-2/hardhat account:reveal-pk",
     "chain": "yarn hardhat:chain",
     "compile": "yarn hardhat:compile",
+    "circuits:evm": "bash packages/circuits/scripts/generate_evm_artifacts.sh",
     "deploy": "yarn hardhat:deploy",
     "fork": "yarn hardhat:fork",
     "format": "yarn next:format && yarn hardhat:format",

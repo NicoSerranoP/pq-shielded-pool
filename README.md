@@ -61,7 +61,18 @@ yarn hardhat:lint
 yarn hardhat:test
 ```
 
-The checked-in Solidity verifiers and EVM proof fixtures are Groth16-wrapped artifacts. The currently installed `provekit-cli` can produce `.np` proofs with `prepare`, `prove`, and `verify`, but it does not expose the `export-solidity` or `export-evm-proof` subcommands needed to refresh `Verifier.sol` and `evm/proof.hex` from a fresh proof. Until that exporter is available in the local Provekit build, local and testnet EVM execution should use the committed Groth16 EVM artifacts.
+The checked-in Solidity verifiers and EVM proof fixtures are Groth16-wrapped artifacts. If your default `provekit-cli` only exposes `prepare`, `prove`, and `verify`, build a Provekit branch that includes `export-solidity` and `export-evm-proof`; `origin/rs/verifying_contract` at commit `dd237e54` was verified locally for fresh deposit EVM proof export.
+
+```bash
+git clone https://github.com/worldfnd/provekit /tmp/provekit-evm-export
+cd /tmp/provekit-evm-export
+git checkout rs/verifying_contract
+cargo build --release -p provekit-cli
+cd /path/to/pq-shielded-pool
+PROVEKIT_CLI=/tmp/provekit-evm-export/target/release/provekit-cli yarn circuits:evm
+```
+
+`yarn circuits:evm` regenerates `deposit`, `transfer`, and `withdraw` `.pkp`, `.pkv`, `proof.np`, `evm/proof.hex`, `evm/inputs.txt`, and `Verifier.sol`, then syncs the renamed verifier contracts into `packages/hardhat/contracts/generated`. Groth16 setup is randomized, so verifier/proof diffs are expected. Run `yarn hardhat:test` after regenerating artifacts.
 
 ## About Scaffold-ETH 2
 

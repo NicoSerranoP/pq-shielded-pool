@@ -32,7 +32,7 @@ source ~/.bashrc
 provekit-cli --help
 ```
 
-## Current EVM proof-export status
+## EVM proof export
 
 The checked-in `deposit`, `transfer`, and `withdraw` EVM fixtures are Groth16-wrapped artifacts:
 
@@ -40,7 +40,18 @@ The checked-in `deposit`, `transfer`, and `withdraw` EVM fixtures are Groth16-wr
 - `packages/circuits/<ACTION_CIRCUIT>/evm/proof.hex`
 - `packages/circuits/<ACTION_CIRCUIT>/evm/inputs.txt`
 
-The currently installed local `provekit-cli` exposes `prepare`, `prove`, and `verify`, but does not expose `export-solidity` or `export-evm-proof`. That means it can regenerate `.pkp`, `.pkv`, and `.np` files, but cannot currently refresh the Solidity verifier or 384-byte EVM proof fixture. Use the checked-in EVM artifacts for Hardhat and testnet execution until a Provekit build with those export subcommands is installed.
+Some Provekit builds expose only `prepare`, `prove`, and `verify`. To regenerate EVM artifacts, use a build that also exposes `export-solidity` and `export-evm-proof`; `origin/rs/verifying_contract` at commit `dd237e54` was verified locally for fresh deposit EVM proof export.
+
+```bash
+git clone https://github.com/worldfnd/provekit /tmp/provekit-evm-export
+cd /tmp/provekit-evm-export
+git checkout rs/verifying_contract
+cargo build --release -p provekit-cli
+cd /path/to/pq-shielded-pool
+PROVEKIT_CLI=/tmp/provekit-evm-export/target/release/provekit-cli yarn circuits:evm
+```
+
+`yarn circuits:evm` regenerates all three circuit EVM artifacts and syncs the renamed verifier contracts into `packages/hardhat/contracts/generated`. Groth16 setup is randomized, so verifier and proof diffs are expected.
 
 ## Prepare, prove and verify the circuits (only Provekit)
 ```bash
