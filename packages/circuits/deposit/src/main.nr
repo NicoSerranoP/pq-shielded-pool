@@ -10,3 +10,5 @@ pub fn main(note: Note, commitment: pub Field) {
 
     assert(computed_commitment == commitment, "Commitment mismatch");
 }
+
+//TODO: add assert(note.value as Field == amount, "Note value does not match deposited amount");

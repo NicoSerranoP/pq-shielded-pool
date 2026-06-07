@@ -11,6 +11,7 @@
     "clean": "hardhat clean",
     "compile": "hardhat compile",
     "deploy": "ts-node scripts/runHardhatDeployWithPK.ts",
+    "test:deposit": "ts-node scripts/runHardhatScriptWithPK.ts scripts/testDeposit.ts --network sepolia",
     "flatten": "hardhat flatten",
     "fork": "MAINNET_FORKING_ENABLED=true hardhat node --network hardhat --no-deploy",
     "format": "prettier --write './**/*.(ts|sol)'",
@@ -25,8 +26,10 @@
     "@inquirer/password": "^4.0.2",
     "@openzeppelin/contracts": "~5.0.2",
     "@typechain/ethers-v6": "~0.5.1",
+    "@zk-kit/lean-imt.sol": "2.0.1",
     "dotenv": "~16.4.5",
     "envfile": "~7.1.0",
+    "poseidon-solidity": "0.0.5",
     "qrcode": "~1.5.4"
   },
   "devDependencies": {

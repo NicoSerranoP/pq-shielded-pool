@@ -473,11 +473,10 @@ contract ProvekitGroth16Verifier {
         // chain `hash_to_fr_multi`. The on-chain split below mirrors that.
         // N_CHALLENGE is a compile-time constant, so the dead branch is
         // pruned.
-        uint256[N_CHALLENGE] memory out;
-        if (N_CHALLENGE == 1) {
-            out[0] = _hashToFr(msgBuf, DST_COMMITMENT);
-            return out;
-        }
+        // The Rust prover and verifier always use `hash_to_fr_multi`
+        // unconditionally for every N — including N=1. The counter-chain
+        // produces a different value than a bare `hash_to_fr` call, so we
+        // must mirror that here for all values of N_CHALLENGE.
         return _hashToFrMulti(msgBuf, DST_COMMITMENT);
     }
 
