@@ -43,11 +43,30 @@ yarn vercel:yolo --prod # for deployment of frontend
 
 ## Architecture
 
+### Cairo/STARK Migration
+
+This branch keeps Nico's provekit/Noir circuits under `packages/circuits` intact and adds a parallel post-quantum Cairo/STARK path under `packages/cairo-shielded-pool`.
+
+Useful commands:
+
+```bash
+corepack yarn cairo:shielded-pool:build
+corepack yarn cairo:shielded-pool:test
+corepack yarn cairo:shielded-pool:prove-stone:transfer
+corepack yarn cairo:shielded-pool:prove-stone-legacy-gps:transfer
+corepack yarn scarb:build-patched-execute
+```
+
+The Solidity adapter is `packages/hardhat/contracts/CairoShieldedPoolVerifier.sol`. It implements the same verifier interface shape as the pool and checks Cairo fact hashes against `ICairoFactRegistry`.
+
+Local Stone proving is private-witness-safe: it runs locally and does not use Atlantic. The direct deployed-GPS verifier path has been tested on a local mainnet fork for the transfer statement; Sepolia direct verifier helper addresses are still unresolved.
+
 ### Monorepo Structure
 
 The protocol requires multiple packages to work:
 
-- `packages/circuits`: Circom circuits for zk proof generation and verification (currently using Noir)
+- `packages/circuits`: Noir/provekit circuits for zk proof generation and verification; retained for comparison and current provekit tests
+- `packages/cairo-shielded-pool`: Cairo deposit/transfer/withdraw statement prototypes for the post-quantum STARK path
 - `packages/hardhat`: Smart contract development, deployment scripts, and contract tests
 - `packages/nextjs`: React frontend for user interaction with the protocol
 

@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 /// @notice Bucketed linked-list set for random-looking uint256 nullifiers.
 /// @dev Uses the most-significant NUM_BITS_NULLIFIER_BUCKET bits as bucket id.
-contract BucketedNullifierSet {
+abstract contract BucketedNullifierSet {
     // -------------------------------------------------------------------------
     // Tunable parameters
     // -------------------------------------------------------------------------
@@ -48,20 +48,12 @@ contract BucketedNullifierSet {
     error NullifierAlreadyInserted(uint256 nullifier);
     error InvalidLinkedListState();
 
-    event NullifierPushed(
-        uint256 indexed nullifier,
-        uint256 indexed bucketId,
-        uint64 indexed nodeId
-    );
-
-    // -------------------------------------------------------------------------
-    // External API
-    // -------------------------------------------------------------------------
+    event NullifierPushed(uint256 indexed nullifier, uint256 indexed bucketId, uint64 indexed nodeId);
 
     /// @notice Insert a nullifier into the set.
     /// @dev Reverts if the nullifier already exists.
-    function push(uint256 nullifier) external {
-        uint256 bucketId = _bucketOf(nullifier);
+    function _pushNullifier(uint256 nullifier) internal {
+        uint256 bucketId = bucketOf(nullifier);
         Bucket storage bucket = _buckets[bucketId];
 
         if (bucket.head == 0) {
@@ -95,8 +87,8 @@ contract BucketedNullifierSet {
     }
 
     /// @notice Returns true iff `nullifier` has been inserted.
-    function contains(uint256 nullifier) external view returns (bool) {
-        uint256 bucketId = _bucketOf(nullifier);
+    function contains(uint256 nullifier) public view returns (bool) {
+        uint256 bucketId = bucketOf(nullifier);
         Bucket storage bucket = _buckets[bucketId];
 
         if (bucket.head == 0) {
@@ -107,26 +99,22 @@ contract BucketedNullifierSet {
     }
 
     /// @notice Returns the bucket id for a nullifier.
-    function bucketOf(uint256 nullifier) external pure returns (uint256) {
-        return _bucketOf(nullifier);
+    function bucketOf(uint256 nullifier) public pure returns (uint256) {
+        if (NUM_BITS_NULLIFIER_BUCKET == 0) {
+            return 0;
+        }
+
+        return nullifier >> (256 - NUM_BITS_NULLIFIER_BUCKET);
     }
 
     /// @notice Convenience function for inspecting a bucket.
-    function bucketInfo(uint256 bucketId)
-        external
-        view
-        returns (uint64 head, uint64 tail)
-    {
+    function bucketInfo(uint256 bucketId) public view returns (uint64 head, uint64 tail) {
         Bucket storage bucket = _buckets[bucketId];
         return (bucket.head, bucket.tail);
     }
 
     /// @notice Convenience function for inspecting a node.
-    function nodeInfo(uint64 nodeId)
-        external
-        view
-        returns (uint64 next, uint8 len, uint256[LL_OBJ_SIZE] memory values)
-    {
+    function nodeInfo(uint64 nodeId) public view returns (uint64 next, uint8 len, uint256[LL_OBJ_SIZE] memory values) {
         Node storage node = _nodes[nodeId];
         return (node.next, node.len, node.values);
     }
@@ -134,15 +122,6 @@ contract BucketedNullifierSet {
     // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
-
-    /// @dev Uses the most-significant NUM_BITS_NULLIFIER_BUCKET bits.
-    function _bucketOf(uint256 nullifier) internal pure returns (uint256) {
-        if (NUM_BITS_NULLIFIER_BUCKET == 0) {
-            return 0;
-        }
-
-        return nullifier >> (256 - NUM_BITS_NULLIFIER_BUCKET);
-    }
 
     function _allocateNode(uint256 firstValue) internal returns (uint64 nodeId) {
         nodeId = _nextNodeId;
@@ -153,10 +132,7 @@ contract BucketedNullifierSet {
         node.values[0] = firstValue;
     }
 
-    function _containsInBucket(
-        Bucket storage bucket,
-        uint256 nullifier
-    ) internal view returns (bool) {
+    function _containsInBucket(Bucket storage bucket, uint256 nullifier) internal view returns (bool) {
         uint64 nodeId = bucket.head;
 
         while (nodeId != 0) {

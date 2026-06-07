@@ -1,0 +1,327 @@
+diff --git a/extensions/scarb-execute/src/lib.rs b/extensions/scarb-execute/src/lib.rs
+index 2322825..2db32f8 100644
+--- a/extensions/scarb-execute/src/lib.rs
++++ b/extensions/scarb-execute/src/lib.rs
+@@ -17,7 +17,9 @@ use cairo_program_runner_lib::{
+ };
+ use cairo_vm::Felt252;
+ use cairo_vm::cairo_run::cairo_run_program;
+-use cairo_vm::cairo_run::{CairoRunConfig, cairo_run_program_with_initial_scope};
++use cairo_vm::cairo_run::{
++    CairoRunConfig, cairo_run_program_with_initial_scope, write_encoded_memory, write_encoded_trace,
++};
+ use cairo_vm::types::exec_scope::ExecutionScopes;
+ use cairo_vm::types::layout_name::LayoutName;
+ use cairo_vm::types::program::Program;
+@@ -40,7 +42,7 @@ use scarb_ui::components::Status;
+ use serde_json::{Value, json};
+ use std::env;
+ use std::fs;
+-use std::io::{self};
++use std::io::{self, BufWriter};
+ use std::str::FromStr;
+ use stwo_cairo_adapter::adapter::adapt;
+
+@@ -52,7 +54,7 @@ pub(crate) mod output;
+ const MAX_ITERATION_COUNT: usize = 10000;
+ const EXECUTION_ID_ENV: &str = "SCARB_EXECUTION_ID";
+
+-const COMPILED_BOOTLOADER: &str = include_str!("../bootloaders/simple_bootloader.json");
++const COMPILED_BOOTLOADER: &str = include_str!("../bootloaders/stone_full_bootloader.json");
+
+ pub fn main_inner(args: Args, ui: Ui) -> Result<()> {
+     let metadata = MetadataCommand::new()
+@@ -109,16 +111,56 @@ fn execute_bootloader(
+     let args = read_arguments_as_values(arguments)?;
+
+     // Program input JSON for the bootloader.
++    let fact_topologies_path = executable_path
++        .parent()
++        .unwrap_or_else(|| Utf8Path::new("."))
++        .join("stone-full-bootloader-fact-topologies.json");
++    let bootloader_task = if let Ok(task_pie_path) = env::var("SCARB_FULL_BOOTLOADER_TASK_PIE_PATH") {
++        json!({
++            "type": "CairoPiePath",
++            "path": task_pie_path,
++            "program_hash_function": "poseidon",
++        })
++    } else {
++        json!({
++            "type": "Cairo1Executable",
++            "path": executable_path,
++            "program_hash_function": "poseidon",
++            "user_args_list": args,
++        })
++    };
++
+     let program_input = json!({
+-        "single_page": true,
+-        "tasks": [
++        "bootloader_config": {
++            "supported_simple_bootloader_hash_list": [
++                "0xd875840ac697dbeedb3d4c8f2a61889bc1d5f1af91e67a7cc7360e8faf35bf"
++            ],
++            "supported_cairo_verifier_program_hashes": [
++                "0x97e831fcc22602fa025e89c9c6b7e7272686398de428136cf52f3f006a845e",
++                "0x7b2acdc57670aff4eac1f72b41ef759f003c122ed6cece634b76581966eade2",
++                "0x24a3890c0d0ee8f7dfed5d1f89e3991bbc1b20d506c0700b24977f16f4487",
++                "0x49904b6ecb9e083a42a1f50eb336ecc7e7a7c3ce06aabea405847cf0e2c1b2",
++                "0x64b111ddda7af6661f2d1e6255ad7576ce8281ec701b166f07debca3bd7a0eb",
++                "0x29a7e7366aa18c837867443aed5975f55107a8fdb6f33c418b81463a4156abf",
++                "0x1fbfa8a63b6197519c5fbbf3b9090b6fadea637c8afba051c7419fd1d3d7fb3",
++                "0x7d9c440b45a189c29e5d544d5b3ed167d089e3dd21e154abede91f90afb35ca",
++                "0x41e6fdf682dca5b1e1194a93da5312fe66c06f08550a62c9e27645ca3874483",
++                "0x3b58154a414a8e66fb65b1f6f612cd4ca21d68815fb0c6252930d4ddb04c72c",
++                "0x2c47af88d90c4acd90fa663713e02a1f0a8b1239882d2f6b58dc964529540c9",
++                "0x571ed7fb8805802da530fcac931794462cb7909479ec0ffd24766913a88636c",
++                "0x6ad5606d7e4e7bc01b38a36d3fdca7afcf24d5db25ed4d050a4e77c31c5527b",
++                "0x323c8251dbd935f45105bc241765a5082d9a985cbc3bffece3382708fb88dc5",
++            ],
++            "applicative_bootloader_program_hash": "0x0"
++        },
++        "packed_outputs": [
+             {
+-                "type": "Cairo1Executable",
+-                "path": executable_path,
+-                "program_hash_function": "blake",
+-                "user_args_list": args,
++                "type": "PlainPackedOutput"
+             }
+         ],
++        "single_page": false,
++        "fact_topologies_path": fact_topologies_path,
++        "tasks": [bootloader_task],
+     });
+     let program_input = ProgramInput::Json(serde_json::to_string(&program_input)?);
+
+@@ -172,22 +214,40 @@ fn execute_standalone(
+
+     let (hints, string_to_hint) = build_hints_dict(&executable.program.hints);
+
++    let entrypoint_kind = if cairo_run_config.proof_mode {
++        EntryPointKind::Standalone
++    } else {
++        EntryPointKind::Bootloader
++    };
+     let entrypoint = executable
+         .entrypoints
+         .iter()
+-        .find(|e| matches!(e.kind, EntryPointKind::Standalone))
+-        .with_context(|| "no `Standalone` entrypoint found")?;
+-    let program = Program::new_for_proof(
+-        entrypoint.builtins.clone(),
+-        data,
+-        entrypoint.offset,
+-        entrypoint.offset + 4,
+-        hints,
+-        Default::default(),
+-        Default::default(),
+-        vec![],
+-        None,
+-    )
++        .find(|e| e.kind == entrypoint_kind)
++        .with_context(|| format!("no `{entrypoint_kind:?}` entrypoint found"))?;
++    let program = if cairo_run_config.proof_mode {
++        Program::new_for_proof(
++            entrypoint.builtins.clone(),
++            data,
++            entrypoint.offset,
++            entrypoint.offset + 4,
++            hints,
++            Default::default(),
++            Default::default(),
++            vec![],
++            None,
++        )
++    } else {
++        Program::new(
++            entrypoint.builtins.clone(),
++            data,
++            Some(entrypoint.offset),
++            hints,
++            Default::default(),
++            Default::default(),
++            vec![],
++            None,
++        )
++    }
+     .context("failed setting up program")?;
+
+     let cairo_hint_processor = CairoHintProcessor {
+@@ -224,29 +284,38 @@ fn build_cairo_run_config(
+     target: &ExecutionTarget,
+     args: &ExecutionArgs,
+ ) -> Result<CairoRunConfig<'static>> {
+-    let relocate_mem =
+-        output.is_standard() || args.run.print_resource_usage || args.run.save_profiler_trace_data;
++    let relocate_mem = output.is_standard()
++        || args.run.print_resource_usage
++        || args.run.save_profiler_trace_data
++        || args.run.save_stone_air_inputs;
+     if target.is_bootloader() {
+-        Ok(get_cairo_run_config(
++        let mut config = get_cairo_run_config(
+             &None,
+             args.run.layout,
+             true,
+             true,
+             true,
+             relocate_mem,
+-        )?)
++        )?;
++        if args.run.save_stone_air_inputs {
++            config.disable_trace_padding = false;
++            config.trace_enabled = true;
++            config.relocate_mem = true;
++        }
++        Ok(config)
+     } else {
+         Ok(CairoRunConfig {
+-            allow_missing_builtins: Some(true),
++            allow_missing_builtins: Some(false),
+             layout: args.run.layout,
+-            proof_mode: true,
+-            disable_trace_padding: true,
++            proof_mode: !output.is_cairo_pie(),
++            disable_trace_padding: !(output.is_cairo_pie() || args.run.save_stone_air_inputs),
+             fill_holes: true,
+             secure_run: None,
+             relocate_mem,
+             trace_enabled: output.is_standard()
+                 || args.run.print_resource_usage
+-                || args.run.save_profiler_trace_data,
++                || args.run.save_profiler_trace_data
++                || args.run.save_stone_air_inputs,
+             ..Default::default()
+         })
+     }
+@@ -270,6 +339,10 @@ pub fn execute(
+         .clone()
+         .unwrap_or(ExecutionTarget::Standalone);
+     output.validate(&target)?;
++    ensure!(
++        !(args.run.save_stone_air_inputs && output.is_cairo_pie()),
++        "`--save-stone-air-inputs` cannot be used with `--output cairo-pie`; Stone inputs require proof-mode trace and memory output"
++    );
+
+     if !args.no_build {
+         let filter = PackagesFilter::generate_for::<Metadata>([package.clone()].iter());
+@@ -370,6 +443,16 @@ pub fn execute(
+         fs::write(input_path, serde_json::to_string(&adapted)?)?;
+     }
+
++    if args.run.save_stone_air_inputs {
++        let stone_output_dir = execution_output_dir.join("stone-air-inputs");
++        fs::create_dir_all(&stone_output_dir)?;
++        save_stone_air_inputs(&runner, &stone_output_dir)?;
++        ui.print(Status::new(
++            "Saving Stone AIR inputs to:",
++            &display_path(&scarb_target_dir, &stone_output_dir),
++        ));
++    }
++
+     if args.run.save_profiler_trace_data {
+         ensure!(
+             build_target.params.get("sierra").and_then(|v| v.as_bool()) == Some(true),
+@@ -431,6 +514,46 @@ pub fn execute(
+     Ok(())
+ }
+
++fn save_stone_air_inputs(runner: &CairoRunner, output_dir: &Utf8Path) -> Result<()> {
++    let trace_path = output_dir.join("trace.bin");
++    let memory_path = output_dir.join("memory.bin");
++    let public_input_path = output_dir.join("air_public_input.json");
++    let private_input_path = output_dir.join("air_private_input.json");
++
++    let relocated_trace = runner
++        .relocated_trace
++        .as_ref()
++        .context("Stone AIR input output requires a relocated execution trace")?;
++
++    let mut trace_file = BufWriter::new(fs::File::create(&trace_path)?);
++    write_encoded_trace(relocated_trace, &mut trace_file)
++        .context("failed to write Stone trace.bin")?;
++
++    let mut memory_file = BufWriter::new(fs::File::create(&memory_path)?);
++    write_encoded_memory(&runner.relocated_memory, &mut memory_file)
++        .context("failed to write Stone memory.bin")?;
++
++    fs::write(
++        public_input_path,
++        runner
++            .get_air_public_input()
++            .context("failed to build Stone AIR public input")?
++            .serialize_json()
++            .context("failed to serialize Stone AIR public input")?,
++    )?;
++
++    fs::write(
++        private_input_path,
++        runner
++            .get_air_private_input()
++            .to_serializable("trace.bin".to_string(), "memory.bin".to_string())
++            .serialize_json()
++            .context("failed to serialize Stone AIR private input")?,
++    )?;
++
++    Ok(())
++}
++
+ fn scarb_target_dir_from_env() -> Result<Utf8PathBuf> {
+     match env::var("SCARB_TARGET_DIR") {
+         Ok(value) => Ok(Utf8PathBuf::from(value)),
+diff --git a/utils/scarb-extensions-cli/src/execute.rs b/utils/scarb-extensions-cli/src/execute.rs
+index cd3fcaa..fd395cb 100644
+--- a/utils/scarb-extensions-cli/src/execute.rs
++++ b/utils/scarb-extensions-cli/src/execute.rs
+@@ -2,7 +2,7 @@
+
+ //! Extension CLI arguments datastructures.
+
+-use anyhow::{Result, ensure};
++use anyhow::Result;
+ use cairo_vm::Felt252;
+ use cairo_vm::types::layout_name::LayoutName;
+ use camino::Utf8PathBuf;
+@@ -142,6 +142,10 @@ pub struct RunArgs {
+     #[arg(long, default_value_t = false)]
+     pub save_profiler_trace_data: bool,
+
++    /// Whether to save Stone prover AIR input files.
++    #[arg(long, default_value_t = false)]
++    pub save_stone_air_inputs: bool,
++
+     /// Override layout configuration.
+     #[arg(long, default_value_t = LayoutName::stwo_no_ecop)]
+     pub layout: LayoutName,
+@@ -156,6 +160,7 @@ impl ToArgs for RunArgs {
+             print_program_output,
+             print_resource_usage,
+             save_profiler_trace_data,
++            save_stone_air_inputs,
+             layout,
+         } = self;
+         let mut args = arguments.to_args();
+@@ -176,6 +181,9 @@ impl ToArgs for RunArgs {
+         if *save_profiler_trace_data {
+             args.push("--save-profiler-trace-data".to_string());
+         }
++        if *save_stone_air_inputs {
++            args.push("--save-stone-air-inputs".to_string());
++        }
+         args.push("--layout".to_string());
+         args.push(layout.to_string());
+         args
+@@ -228,11 +236,7 @@ pub enum OutputFormat {
+
+ #[doc(hidden)]
+ impl OutputFormat {
+-    pub fn validate(&self, target: &ExecutionTarget) -> Result<()> {
+-        ensure!(
+-            !(self.is_cairo_pie() && target.is_standalone()),
+-            "Cairo pie output format is not supported for standalone execution target"
+-        );
++    pub fn validate(&self, _target: &ExecutionTarget) -> Result<()> {
+         Ok(())
+     }
+     pub fn is_standard(&self) -> bool {

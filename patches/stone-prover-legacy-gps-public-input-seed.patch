@@ -1,0 +1,22 @@
+diff --git a/src/starkware/statement/cpu/cpu_air_statement.cc b/src/starkware/statement/cpu/cpu_air_statement.cc
+index e583c30..6dddfec 100644
+--- a/src/starkware/statement/cpu/cpu_air_statement.cc
++++ b/src/starkware/statement/cpu/cpu_air_statement.cc
+@@ -140,8 +140,7 @@ const std::vector<std::byte> CpuAirStatement::GetInitialHashChainSeed() const {
+       });
+
+   PublicInputSerializer serializer(
+-      (/*n_verifier_friendly_commitment_layers_, n_steps, rc_min, rc_max, layout_name*/ 5) *
+-          sizeof(BigInt<4>) +
++      /*legacy GPS seed: n_steps, rc_min, rc_max, layout_name*/ 4 * sizeof(BigInt<4>) +
+       (/*dynamic_params*/ dynamic_params_.size()) * sizeof(BigInt<4>) +
+       segment_names.size() * (/*begin_addr, stop_ptr*/ 2) * sizeof(BigInt<4>) +
+       (/*padding_address*/ sizeof(BigInt<4>) + /*padding_value*/ sizeof(FieldElementT)) +
+@@ -151,7 +150,6 @@ const std::vector<std::byte> CpuAirStatement::GetInitialHashChainSeed() const {
+       (page_sizes.size() - 1) * ((/*start_addr, size*/ 2) * sizeof(BigInt<4>) +
+                                  /*hash*/ 1 * digest_num_bytes));
+
+-  serializer.Append(BigInt<4>(n_verifier_friendly_commitment_layers_));
+   serializer.Append(BigInt<4>(SafeLog2(n_steps_)));
+   serializer.Append(BigInt<4>(rc_min_));
+   serializer.Append(BigInt<4>(rc_max_));
