@@ -36,3 +36,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 ipfs-upload.config.json
+.shielded-demo-notes.json
+.shielded-demo-notes.json.tmp

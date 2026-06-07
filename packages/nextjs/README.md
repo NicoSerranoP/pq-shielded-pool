@@ -42,10 +42,27 @@ The frontend defaults to Sepolia. To read local Hardhat contract data, switch th
 `scaffold.config.ts` includes both Hardhat and Sepolia. Sepolia points at the deployed `ShieldedPool` contract:
 
 ```text
-0x286CD3713B16Cfc13C58A344d54BeA8eCF16dA54
+0x312D2afF3bAE86C7858Ef252e7684E28A4A95603
 ```
 
-When the wallet is connected to Sepolia, the contract mirror panel reads the live tree size, tree depth, and current root from that deployment. The three main buttons still run the browser-safe demo animation because proof generation is a local CLI workflow, not browser-side code.
+When the wallet is connected to Sepolia, the contract mirror panel reads the live tree size, tree depth, and current root from that deployment.
+
+Deposit and Withdraw can also run through the local Next.js backend when these server-side environment variables are set before `yarn start`:
+
+```bash
+export __RUNTIME_DEPLOYER_PRIVATE_KEY=<sepolia-private-key>
+export PROVEKIT_CLI=/tmp/provekit-evm-export/target/release/provekit-cli
+export PATH="$HOME/.nargo/bin:$PATH"
+yarn start
+```
+
+The backend route is:
+
+```text
+/api/shielded-pool/live
+```
+
+It generates Provekit proofs locally, submits Sepolia transactions, stores non-secret demo note metadata in `packages/nextjs/.shielded-demo-notes.json`, and returns Etherscan transaction links to the UI. Transfer remains a browser-safe demo flow for now.
 
 ## Sepolia proof test scripts
 

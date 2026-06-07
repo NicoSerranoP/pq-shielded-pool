@@ -121,6 +121,17 @@ type PublicInputField = {
   placeholder: string;
 };
 
+type LiveTxState = {
+  action?: DemoAction;
+  commitment?: string;
+  error?: string;
+  etherscanTxUrl?: string;
+  noteId?: string;
+  root?: string;
+  status: "idle" | "running" | "success" | "error";
+  txHash?: string;
+};
+
 const ACTIONS: ActionSpec[] = [
   {
     id: "deposit",
@@ -286,9 +297,9 @@ const shortenValue = (value: string, head = 10, tail = 6) => {
 
 const normalizeInput = (value: string, fallback: string) => value.trim() || fallback;
 
-const SEPOLIA_SHIELDED_POOL_ADDRESS = "0x286CD3713B16Cfc13C58A344d54BeA8eCF16dA54";
+const SEPOLIA_SHIELDED_POOL_ADDRESS = "0x312D2afF3bAE86C7858Ef252e7684E28A4A95603";
 const SEPOLIA_SHIELDED_POOL_ETHERSCAN_URL =
-  "https://sepolia.etherscan.io/address/0x286CD3713B16Cfc13C58A344d54BeA8eCF16dA54";
+  "https://sepolia.etherscan.io/address/0x312D2afF3bAE86C7858Ef252e7684E28A4A95603";
 
 const amountLabel = (amount: string) => `${normalizeInput(amount, "0")} wei`;
 
@@ -421,7 +432,7 @@ const INITIAL_ROOT = getTreeRoot(INITIAL_DEMO_LEAVES);
 
 const INITIAL_PUBLIC_INPUTS: PublicInputs = {
   deposit: {
-    amount: "10",
+    amount: "1",
     assetId: "1",
     commitment: "0xb8f9462e1ad4",
     proof: "0xdeposit-proof",
@@ -434,7 +445,7 @@ const INITIAL_PUBLIC_INPUTS: PublicInputs = {
     root: INITIAL_ROOT,
   },
   withdraw: {
-    amount: "5",
+    amount: "1",
     inputNullifier: "0x99df72a016c8",
     proof: "0xwithdraw-proof",
     recipient: "0x9a3C4E5A1F2b6C7d8E9012345678901234567890",
@@ -741,6 +752,7 @@ const Home: NextPage = () => {
   const [selectedAction, setSelectedAction] = useState<DemoAction>("deposit");
   const [stats, setStats] = useState<DemoStats>(INITIAL_STATS);
   const [run, setRun] = useState<FlowRun>(() => createInitialRun());
+  const [liveTx, setLiveTx] = useState<LiveTxState>({ status: "idle" });
   const terminalRef = useRef<HTMLDivElement>(null);
   const isLocalTarget = targetNetwork.id === 31337;
   const isSepoliaTarget = targetNetwork.id === 11155111;
@@ -804,6 +816,10 @@ const Home: NextPage = () => {
   }, [stats.localRoot]);
 
   useEffect(() => {
+    if (liveTx.status === "running" && liveTx.action === run.action) {
+      return;
+    }
+
     if (run.status !== "running" || run.currentStep < 0) {
       return;
     }
@@ -831,7 +847,7 @@ const Home: NextPage = () => {
     }, step.durationMs);
 
     return () => window.clearTimeout(timer);
-  }, [run.action, run.artifacts, run.currentStep, run.status, run.steps]);
+  }, [liveTx.action, liveTx.status, run.action, run.artifacts, run.currentStep, run.status, run.steps]);
 
   useEffect(() => {
     terminalRef.current?.scrollTo({
@@ -862,6 +878,85 @@ const Home: NextPage = () => {
       status: "running",
       steps: buildFlowSteps(action, artifacts),
     }));
+  };
+
+  const runLiveAction = async (action: Extract<DemoAction, "deposit" | "withdraw">) => {
+    const artifacts = createArtifacts(action, stats.localRoot, connectedAddress, publicInputs, demoLeaves);
+
+    setSelectedAction(action);
+    setLiveTx({ action, status: "running" });
+    setRun(currentRun => ({
+      action,
+      artifacts,
+      currentStep: 0,
+      sequence: currentRun.sequence + 1,
+      status: "running",
+      steps: buildFlowSteps(action, artifacts),
+    }));
+
+    try {
+      const response = await fetch("/api/shielded-pool/live", {
+        body: JSON.stringify({
+          action,
+          amount: action === "deposit" ? publicInputs.deposit.amount : undefined,
+          recipient: action === "withdraw" ? connectedAddress : undefined,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error ?? `Live ${action} failed`);
+      }
+
+      const nextArtifacts = {
+        ...artifacts,
+        commitment: result.commitment ?? artifacts.commitment,
+        inputNullifier: result.nullifier ?? artifacts.inputNullifier,
+        newRoot: result.rootAfter ?? result.root ?? artifacts.newRoot,
+        root: result.root ?? result.rootAfter ?? artifacts.root,
+        txHash: result.txHash ?? artifacts.txHash,
+      };
+
+      setLiveTx({
+        action,
+        commitment: result.commitment,
+        etherscanTxUrl: result.etherscanTxUrl,
+        noteId: result.noteId,
+        root: result.rootAfter ?? result.root,
+        status: "success",
+        txHash: result.txHash,
+      });
+      setRun(currentRun => ({
+        ...currentRun,
+        artifacts: nextArtifacts,
+        currentStep: currentRun.steps.length - 1,
+        status: "complete",
+      }));
+      setDemoLeaves(currentLeaves => previewLeavesForAction(currentLeaves, action, nextArtifacts));
+      setStats(currentStats => updateDemoStats(currentStats, action, nextArtifacts));
+      notification.success(`Live Sepolia ${action} tx mined`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : `Live ${action} failed`;
+      setLiveTx({ action, error: message, status: "error" });
+      setRun(currentRun => ({
+        ...currentRun,
+        status: "idle",
+      }));
+      notification.error(message);
+    }
+  };
+
+  const handleActionClick = (action: DemoAction) => {
+    if (isSepoliaTarget && (action === "deposit" || action === "withdraw")) {
+      void runLiveAction(action);
+      return;
+    }
+
+    startFlow(action);
   };
 
   const statusBadge =
@@ -899,6 +994,7 @@ const Home: NextPage = () => {
 
   const networkStats = [
     { label: "Selected network", value: targetNetwork.name },
+    { label: "Live writes", value: isSepoliaTarget ? "deposit/withdraw" : "demo only" },
     { label: "Hardhat", value: isLocalTarget ? "active target" : "available" },
     { label: "Sepolia", value: isSepoliaTarget ? "active deployment" : "configured" },
   ];
@@ -945,7 +1041,7 @@ const Home: NextPage = () => {
                     key={action.id}
                     className={`btn ${action.buttonClass} h-16 min-h-16 w-full justify-start gap-3 px-4 text-left`}
                     disabled={isRunning}
-                    onClick={() => startFlow(action.id)}
+                    onClick={() => handleActionClick(action.id)}
                     type="button"
                   >
                     {isActive ? (
@@ -1035,6 +1131,34 @@ const Home: NextPage = () => {
                     <div className="truncate font-mono text-sm font-semibold">{item.value}</div>
                   </div>
                 ))}
+              </div>
+              <div className="mt-3 rounded-md bg-white px-3 py-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="text-xs text-base-content/60">Last live Sepolia tx</div>
+                    <div className="truncate font-mono text-sm font-semibold">
+                      {liveTx.status === "running"
+                        ? `${actionLabel(liveTx.action ?? "deposit")} backend running...`
+                        : liveTx.txHash
+                          ? shortenValue(liveTx.txHash)
+                          : liveTx.status === "error"
+                            ? "backend error"
+                            : "none yet"}
+                    </div>
+                  </div>
+                  {liveTx.etherscanTxUrl ? (
+                    <a
+                      className="btn btn-xs btn-neutral w-fit gap-1"
+                      href={liveTx.etherscanTxUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <ArrowTopRightOnSquareIcon className="h-4 w-4" aria-hidden="true" />
+                      View tx
+                    </a>
+                  ) : null}
+                </div>
+                {liveTx.error ? <div className="mt-2 text-xs text-error">{liveTx.error}</div> : null}
               </div>
             </div>
 
