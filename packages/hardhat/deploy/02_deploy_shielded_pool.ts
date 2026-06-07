@@ -53,23 +53,12 @@ const deployShieldedPool: DeployFunction = async function (hre: HardhatRuntimeEn
     autoMine: true,
   });
 
-  // PoseidonT3 is a Solidity library used by @zk-kit/lean-imt.sol — must be deployed and linked.
-  // hardhat-deploy's `libraries` option does not link before ContractFactory instantiation in this
-  // version, so we deploy via ethers.getContractFactory and register the deployment manually.
-  const poseidonT3 = await deploy("PoseidonT3", {
-    from: deployer,
-    log: true,
-    autoMine: true,
-  });
-
+  // ShieldedPool uses Poseidon2T4 (inline library, no external linking needed)
   const assetId = 1;
   const deployerSigner = await hre.ethers.getSigner(deployer);
 
   const ShieldedPoolFactory = await hre.ethers.getContractFactory("ShieldedPool", {
     signer: deployerSigner,
-    libraries: {
-      PoseidonT3: poseidonT3.address,
-    },
   });
 
   const constructorArgs = [
@@ -95,7 +84,6 @@ const deployShieldedPool: DeployFunction = async function (hre: HardhatRuntimeEn
     args: [...constructorArgs],
     bytecode: artifact.bytecode,
     deployedBytecode: artifact.deployedBytecode,
-    libraries: { PoseidonT3: poseidonT3.address },
   });
 };
 

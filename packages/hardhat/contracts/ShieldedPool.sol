@@ -2,7 +2,8 @@
 pragma solidity ^0.8.24;
 
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import { InternalLeanIMT, LeanIMTData } from "@zk-kit/lean-imt.sol/InternalLeanIMT.sol";
+import { LeanIMTData } from "@zk-kit/lean-imt.sol/InternalLeanIMT.sol";
+import { InternalLeanIMTPoseidon2 } from "./InternalLeanIMTPoseidon2.sol";
 import { BucketedNullifierSet } from "./BucketedNullifierSet.sol";
 
 /// @notice Verifier contract for deposit note well-formedness proofs.
@@ -38,7 +39,7 @@ interface IWithdrawVerifier {
 
 /// @notice Shielded pool using a Lean Incremental Merkle Tree.
 contract ShieldedPool is ReentrancyGuard, BucketedNullifierSet {
-    using InternalLeanIMT for LeanIMTData;
+    using InternalLeanIMTPoseidon2 for LeanIMTData;
 
     uint256 public constant ROOT_HISTORY_SIZE = 100;
 

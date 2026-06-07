@@ -1473,7 +1473,7 @@ const deployedContracts = {
       deployedOnBlock: 11008703,
     },
     DepositVerifierWrapper: {
-      address: "0x02d4382E856199323bAaBdc99AEdcc9986A26E4B",
+      address: "0xfF78f2094C2ab0ED4de6B88677A10636c7BC3b64",
       abi: [
         {
           inputs: [
@@ -1535,7 +1535,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11008704,
+      deployedOnBlock: 11009437,
     },
     MockTransferVerifier: {
       address: "0x3bC9562CeaB8cac3Cbe7F3472aB5211821D74580",
@@ -2096,7 +2096,7 @@ const deployedContracts = {
       deployedOnBlock: 11005101,
     },
     ShieldedPool: {
-      address: "0x59D90b9ddB27935aC7666f237a83bD50Ba9dbFc7",
+      address: "0xc76E9d0f67f94E6D65121eC021653a5A966438C0",
       abi: [
         {
           inputs: [
@@ -2876,7 +2876,7 @@ const deployedContracts = {
       deployedOnBlock: 11009163,
     },
     TransferVerifierWrapper: {
-      address: "0xdf786cA6B05cE8d5305AeE2B34B719FB91B8cD89",
+      address: "0xb4aBD239Da747038D27a4f8597047388b26CC0d2",
       abi: [
         {
           inputs: [
@@ -2938,7 +2938,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11009164,
+      deployedOnBlock: 11009438,
     },
     WithdrawProvekitGroth16Verifier: {
       address: "0x701Dbf4a20d6327690AF264a81824625d326aC4a",
@@ -2986,7 +2986,7 @@ const deployedContracts = {
       deployedOnBlock: 11008706,
     },
     WithdrawVerifierWrapper: {
-      address: "0xD8D448aDD7BA496fdAe67A7Ae8C26065b510EC2c",
+      address: "0x16424691AB0a86aAcd975C045E976A11D958bb4D",
       abi: [
         {
           inputs: [
@@ -3053,7 +3053,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 11008707,
+      deployedOnBlock: 11009439,
     },
   },
 } as const;

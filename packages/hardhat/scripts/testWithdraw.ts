@@ -34,21 +34,36 @@ function computeNoteValues(
   return { commitment: match[1].trim(), nullifier: match[2].trim() };
 }
 
-function generateProof(value: number, owner: string, nonce: number, asset: number, root: string): string {
+function generateProof(
+  value: number,
+  owner: string,
+  nonce: number,
+  asset: number,
+  root: string,
+  leafIndex: number,
+  siblings: string[],
+): string {
   const cli = getProvekitCli();
   const proofPath = path.join(WITHDRAW_DIR, "proof.np");
   const evmDir = path.join(WITHDRAW_DIR, "evm");
   const proverTomlPath = path.join(WITHDRAW_DIR, "Prover.toml");
 
+  const depth = siblings.length;
+
   const indicesArr = Array(MAX_DEPTH).fill(false);
-  const siblingsArr = Array(MAX_DEPTH).fill(0);
+  const siblingsArr: (string | number)[] = Array(MAX_DEPTH).fill(0);
+
+  for (let i = 0; i < depth; i++) {
+    indicesArr[i] = ((leafIndex >> i) & 1) === 1;
+    siblingsArr[i] = `"${siblings[i]}"`;
+  }
 
   const proverToml = `published_root = "${root}"
 value = ${value}
 
 [merkle_proof]
 indices = [${indicesArr.join(", ")}]
-length = 0
+length = ${depth}
 siblings = [${siblingsArr.join(", ")}]
 
 [note]
@@ -80,20 +95,38 @@ async function main() {
   const assetId = 1;
   const nonce = parseInt(process.env.NONCE ?? "0");
   const recipient = process.env.RECIPIENT ?? signer.address;
-  const ownerField = BigInt(signer.address).toString();
+
+  // OWNER: defaults to signer (deposit case). For receiver withdrawals, pass OWNER=<address>.
+  const ownerAddress = process.env.OWNER ?? signer.address;
+  const ownerField = BigInt(ownerAddress).toString();
+
+  // LEAF_INDEX: position of this note in the commitment tree (0 for direct deposit withdrawal).
+  const leafIndex = parseInt(process.env.LEAF_INDEX ?? "0");
+
+  // SIBLINGS: comma-separated hex commitments for the Merkle proof.
+  // For a single-leaf tree (LEAF_INDEX=0) leave empty.
+  // For LEAF_INDEX=1 in a 3-leaf tree: SIBLINGS=<leaf0_commitment>,<leaf2_commitment>
+  const siblingsEnv = (process.env.SIBLINGS ?? "").replace(/\s/g, "");
+  const siblings = siblingsEnv ? siblingsEnv.split(",") : [];
 
   console.log("Computing nullifier...");
   const { nullifier } = computeNoteValues(amount, ownerField, nonce, assetId);
   console.log("Nullifier:", nullifier);
 
   const root = await pool.currentRoot();
-  console.log("Merkle root:", root.toString());
+  const rootHex = "0x" + root.toString(16);
+  console.log("Merkle root:", rootHex);
 
-  // NOTE: this proof assumes a single-leaf tree (length=0 Merkle proof).
-  // For multi-deposit trees, reconstruct siblings from on-chain Deposit events.
-  const proof = generateProof(amount, ownerField, nonce, assetId, "0x" + root.toString(16));
+  if (leafIndex > 0 && siblings.length === 0) {
+    throw new Error(
+      `LEAF_INDEX=${leafIndex} requires SIBLINGS env var. ` +
+        `Run the transfer script first and copy the printed SIBLINGS value.`,
+    );
+  }
 
-  console.log("Withdrawing...");
+  const proof = generateProof(amount, ownerField, nonce, assetId, rootHex, leafIndex, siblings);
+
+  console.log("Withdrawing to", recipient, "...");
   const tx = await pool.withdraw(root, BigInt(nullifier), recipient, amount, proof, { gasLimit: 500_000 });
   const receipt = await tx.wait();
 

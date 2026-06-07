@@ -106,8 +106,8 @@ async function main() {
   const senderField = BigInt(signer.address).toString();
   const receiverField = BigInt(receiverAddress).toString();
 
-  console.log("Computing Sender's nullifier...");
-  const { nullifier } = computeNoteValues(amount, senderField, nonce, assetId);
+  console.log("Computing Sender's commitment + nullifier...");
+  const { commitment: senderCommitment, nullifier } = computeNoteValues(amount, senderField, nonce, assetId);
   console.log("Nullifier:", nullifier);
 
   console.log("Computing Receiver's commitment...");
@@ -146,10 +146,23 @@ async function main() {
   );
   const receipt = await tx.wait();
 
+  const transferLog = receipt?.logs.find(l => {
+    try {
+      pool.interface.parseLog(l as never);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  const transferEvent = transferLog ? pool.interface.parseLog(transferLog as never) : null;
+  const firstLeafIndex = transferEvent?.args?.firstLeafIndex ?? BigInt(1);
+
   console.log("Transfer successful! tx:", receipt?.hash);
-  console.log("\nSend Receiver these values to let him withdraw:");
-  console.log(`  RECEIVER_NONCE=${receiverNonce}`);
+  console.log("\nSend Receiver these values to withdraw:");
   console.log(`  AMOUNT=${amount}`);
+  console.log(`  NONCE=${receiverNonce}`);
+  console.log(`  LEAF_INDEX=${firstLeafIndex.toString()}`);
+  console.log(`  SIBLINGS=${senderCommitment},${changeCommitment}`);
 }
 
 main().catch(console.error);

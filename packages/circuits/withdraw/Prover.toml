@@ -1,10 +1,10 @@
-published_root = "0x69689a589601c88e4fa31141d29ad77ee205a53581a5e87203f01679110a7cb"
+published_root = "0x210531727a1da44d402490a3d3ca22ed281b10654665085a3f46e07c072d95c7"
 value = 5
 
 [merkle_proof]
-indices = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
-length = 0
-siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+indices = [true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
+length = 2
+siblings = ["0x2a7cec1480256063ea182a8bf73400768305bf001a0dd0d5fa6762554b846321", "0x0f809c6aa3714627feed4ceb20cb47eb16886655020e8ffedbcc181db4e14538", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 [note]
 asset = 1
