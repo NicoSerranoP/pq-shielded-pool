@@ -1,25 +1,12 @@
-new_notes_commitments = ["0x16f0350726e5ab57f99a588e660e5820fa1ae3638130fdfe2c297883d58d6d74", "0x159445816ca3a0b8137ef9f30a5547e0374f5e19d16a7e19e1ad4063cae64129"]
-nullifier = "0x079f1b236618bfa7fcc0b96caa26db9f6b9f5203e116662d9aa61a92677f68d8"
 published_root = "0x20a515fe7c855f5887fd8f883cac184945949356f0d12a12835193cbd750c460"
+value = 5
 
 [merkle_proof]
 indices = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
 length = 0
 siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-[[new_notes]]
-asset = 1
-nonce = 1
-owner = 1
-value = 1
-
-[[new_notes]]
-asset = 1
-nonce = 2
-owner = 2
-value = 3
-
-[old_note]
+[note]
 asset = 1
 nonce = 0
 owner = "0x17aa07f6560b626ccd53cbfb2a0f5b4727b31fb8882ec591a22e7e893c067bd2"

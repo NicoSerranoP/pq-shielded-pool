@@ -2,6 +2,7 @@ use crate::constants::MAX_DEPTH;
 
 pub struct Note {
     pub value: u32,
+    pub asset: u32,
     pub owner: Field,
     pub nonce: Field,
 }

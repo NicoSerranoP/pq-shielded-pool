@@ -1,3 +1,3 @@
 [workspace]
-members = ["shared", "deposit", "transfer"]
+members = ["shared", "deposit", "transfer", "withdraw"]
 default-member = "deposit"
